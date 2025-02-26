@@ -1,0 +1,43 @@
+[
+    {
+        "id": "333352",
+        "order_id": "16059537006",
+        "phone": "380970002200",
+        "buyer_name": "боб бобович",
+        "additional_1": "",
+        "additional_2": "",
+        "additional_3": "",
+        "additional_4": "",
+        "cancel_description": "",
+        "comment": "",
+        "email": "",
+        "localization": "ALL",
+        "office": "3",
+        "payment": "0",
+        "site": "",
+        "status": "3",
+        "total": "882.00",
+        "ttn": "12345678",
+        "ttn_status": "Нова пошта очікує надходження від відправника",
+        "attached_user": "vasia",
+        "utm_campaign": "",
+        "utm_content": "",
+        "utm_medium": "",
+        "utm_source": "",
+        "utm_term": "",
+        "user": "admin",
+        "products": 
+                    [
+                        {
+                            "order_id": "16059537006",
+                            "id": "14632",
+                            "quantity": "1",
+                            "price": "882.00",
+                            "id_sub": "0",
+                            "name_sub": "",
+                            "name": "Some product name"
+                        }
+                    ],
+        "products_resale": []
+    }
+]
