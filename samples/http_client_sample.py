@@ -1,6 +1,6 @@
 import asyncio
 
-from middlewares.lp_crm_client.lp_crm_client import LpCrmClient
+from app.middlewares.lp_crm_client.lp_crm_client import LpCrmClient
 
 lpc = LpCrmClient()
 

@@ -1,7 +1,7 @@
 import requests
 from typing import Optional, Union
 
-from middlewares.logger.loguru_logger import LoguruLogger
+from app.middlewares.logger.loguru_logger import LoguruLogger
 
 
 class HTTPClient:

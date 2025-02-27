@@ -1,6 +1,6 @@
-from middlewares.http_client.http_client import HTTPClient
-from middlewares.logger.loguru_logger import LoguruLogger
-from config.config_parser import ConfigParser
+from app.middlewares.http_client.http_client import HTTPClient
+from app.middlewares.logger.loguru_logger import LoguruLogger
+from app.config.config_parser import ConfigParser
 
 
 class LpCrmClient:
@@ -8,8 +8,8 @@ class LpCrmClient:
         self.__http_client = HTTPClient()
         self.__logger = LoguruLogger().logger
         self.__config_parser = ConfigParser()
-        self.__output_api_key = self.__config_parser.output_api_key
-        self.__api_url = self.__config_parser.api_url
+        self.__output_api_key = self.__config_parser.lp_output_api_key
+        self.__api_url = self.__config_parser.lp_api_url
 
     async def get_statuses(self):
         payload: dict = {
