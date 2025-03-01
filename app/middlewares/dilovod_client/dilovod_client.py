@@ -9,17 +9,18 @@ class DilovodClient:
         self.__logger = LoguruLogger().logger
         self.__config_parser = ConfigParser()
 
-    async def configure_payload(self, action: str, document: str, fields: dict, filters_list: list[dict] = []) -> dict:
+    async def configure_payload(self, action: str, document: str, fields: dict, filters_list: list[dict] = None) -> dict:
         base_request: dict = {
             "version": "0.25",
             "key": self.__config_parser.dilovod_api_key,
             "action": action,
             "params": {
                 "from": document,
-                "fields": fields,
-                "filters": filters_list
+                "fields": fields
             }
         }
+        if filters_list:
+            base_request['params']['filters'] = filters_list
         return base_request
 
     async def get_oreder_by_crm_id(self, crm_id: str):
@@ -45,3 +46,13 @@ class DilovodClient:
             payload=request_body,
             parse_mode='json'
         )
+        response_data = response.json()
+        if response_data:
+            if len(response_data) != 0:
+                return response_data
+            else:
+                self.__logger.error(f'No records with LP CRM "order_id": {crm_id}')
+                return None
+        else:
+            self.__logger.error(f'Unable to get Dilovod response for "order_id": {crm_id}')
+            return None

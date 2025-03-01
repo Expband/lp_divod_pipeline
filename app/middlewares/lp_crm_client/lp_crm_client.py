@@ -11,7 +11,7 @@ class LpCrmClient:
         self.__output_api_key = self.__config_parser.lp_output_api_key
         self.__api_url = self.__config_parser.lp_api_url
 
-    async def get_statuses(self):
+    async def get_statuses(self) -> dict:
         payload: dict = {
             'key': self.__output_api_key
         }
@@ -22,15 +22,19 @@ class LpCrmClient:
         )
         if statuses is None:
             self.__logger.error('Unable to retrive data from LP CRM')
+            return None
         else:
             return statuses.json()
 
-    async def get_status_id(self, status: str):
+    async def get_status_and_id(self, status: str) -> str:
         statuses_data: dict = await self.get_statuses()
-        statuses: dict = statuses_data['data']
-        status_id: str = None
-        for _id, crm_status in statuses.items():
-            if crm_status == status:
-                status_id = _id
-                return status_id
-        return status_id
+        if statuses_data is not None:
+            statuses: dict = statuses_data['data']
+            status_id: str = None
+            for _id, crm_status in statuses.items():
+                if crm_status == status:
+                    status_id = _id
+                    return status_id
+            return status_id
+        else:
+            return None

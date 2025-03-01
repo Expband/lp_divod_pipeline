@@ -1,10 +1,12 @@
 import os
-
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
 
 
 class ConfigParser:
+
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    load_dotenv(BASE_DIR/'config'/'.env')
 
     @property
     def lp_output_api_key(self):
