@@ -26,7 +26,7 @@ class LpCrmClient:
         else:
             return statuses.json()
 
-    async def get_status_and_id(self, status: str) -> str:
+    async def get_status_id(self, status: str) -> str:
         statuses_data: dict = await self.get_statuses()
         if statuses_data is not None:
             statuses: dict = statuses_data['data']

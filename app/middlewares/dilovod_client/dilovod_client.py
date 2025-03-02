@@ -9,21 +9,23 @@ class DilovodClient:
         self.__logger = LoguruLogger().logger
         self.__config_parser = ConfigParser()
 
-    async def configure_payload(self, action: str, document: str, fields: dict, filters_list: list[dict] = None) -> dict:
+    async def configure_payload(self, action: str, fields: dict = None, params: dict = None, document: str = None, filters_list: list[dict] = None) -> dict:
         base_request: dict = {
             "version": "0.25",
             "key": self.__config_parser.dilovod_api_key,
             "action": action,
-            "params": {
+            "params": params
+        }
+        if action not in ['getObject', 'saveObject', 'setDelMark']:
+            base_request['params'] = {
                 "from": document,
                 "fields": fields
-            }
-        }
+                }
         if filters_list:
             base_request['params']['filters'] = filters_list
         return base_request
 
-    async def get_oreder_by_crm_id(self, crm_id: str):
+    async def get_oreder_id_by_crm_id(self, crm_id: str):
         fields: dict = {
             "id": "id",
             "remark": "remark"
@@ -55,4 +57,25 @@ class DilovodClient:
                 return None
         else:
             self.__logger.error(f'Unable to get Dilovod response for "order_id": {crm_id}')
+            return None
+
+    async def get_dilovod_order(self, dilovod_id: str):
+        params: dict = {
+            'id': dilovod_id
+        }
+        request_body: dict = await self.configure_payload(
+            action='getObject',
+            params=params
+        )
+        response = await self.__http_client.post(
+            url=self.__config_parser.dilovod_api_url,
+            payload=request_body,
+            parse_mode='json'
+        )
+        response_data = response.json()
+        if response_data:
+            return response_data
+        else:
+            self.__logger.error(f'''Unable to get dilovod order object\n
+                                dilovod id from "documents.saleOrders": {dilovod_id}''')
             return None

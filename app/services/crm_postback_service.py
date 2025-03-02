@@ -19,8 +19,18 @@ class CrmPostbackService:
                 "order_id": {order_id} \n
                 "status_id: {status_id}"''')
             return None
-        dilovod_order_id = await self.__dilovod_client.get_oreder_by_crm_id(order_id)
-        if dilovod_order_id is None:
+        dilovod_order_id_response = await self.__dilovod_client.get_oreder_id_by_crm_id(order_id)
+        if dilovod_order_id_response is None:
+            self.__loger.error(f'''Unexpected error occured while getting Dilovod order id from CRM.\n
+                                CRM "order_id": {order_id}''')
             return None
-        if status_id == '3':
-            print(dilovod_order_id)
+        dilovod_order_id = dilovod_order_id_response[0]['id']
+        dilovod_order_object = await self.__dilovod_client.get_dilovod_order(
+            dilovod_id=dilovod_order_id)
+        print(dilovod_order_object)
+        # order_status_new = await self.__crm_client.get_status_id('Новий')
+        # if status_id == order_status_new:
+        #     print(dilovod_order_id)
+        # order_status_ukr_post = await self.__crm_client.get_status_id('Укр пошта')
+        # if status_id == order_status_ukr_post:
+        #     print(f'dilovod order id: {dilovod_order_id}')
