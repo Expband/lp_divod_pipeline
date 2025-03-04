@@ -2,25 +2,13 @@ import asyncio
 from app.middlewares.dilovod_client.dilovod_client import DilovodClient
 
 dd = DilovodClient()
+
+dd_rr = {'header': {'id': {'id': '1109100000029867', 'pr': '02.03.2025 Замовлення НР00028846'}, 'date': '2025-03-02 20:32:51', 'number': 'НР00028846', 'presentation': {'ru': '02.03.2025 Заказ НР00028846', 'uk': '02.03.2025 Замовлення НР00028846'}, 'delMark': '0', 'posted': '1', 'remark': 'Заказ из CRM: 17409403718, vibeGroup', 'baseDoc': {'id': '0', 'pr': None}, 'version': '2', 'firm': {'id': '1100400000001001', 'pr': 'Здохлій Данило Олександрович'}, 'business': {'id': '1115000000000001', 'pr': '[access restricted]'}, 'storage': {'id': '0', 'pr': None}, 'person': {'id': '1100100000030520', 'pr': 'Тест 2'}, 'manager': {'id': '0', 'pr': '[access restricted]'}, 'department': {'id': '1101900000000001', 'pr': 'Основний підрозділ'}, 'contract': {'id': '0', 'pr': '[access restricted]'}, 'contact': {'id': '0', 'pr': '[access restricted]'}, 'currency': {'id': '1101200000001001', 'pr': 'грн.'}, 'amountCur': '249.00', 'rate': '1.0000', 'paymentForm': {'id': '1110300000001001', 'pr': '[access restricted]'}, 'author': {'id': '0', 'pr': '[access restricted]'}, 'deliveryRemark_forDel': '', 'priceType': {'id': '1101300000001001', 'pr': '[access restricted]'}, 'mrkupPercent_forDel': '0.000', 'discountPercent': '0.000', 'state': {'id': '1111500000000005', 'pr': '[access restricted]'}, 'deliveryPoint': {'id': '0', 'pr': '[access restricted]'}, 'weight': '0.000', 'allowAnyStorage_forDel': '0', 'supplyDate': '0000-00-00 00:00:00', 'reserveDate': '0000-00-00 00:00:00', 'payment_forDel': '0.00', 'cashAccount': {'id': '0', 'pr': None}, 'cashItem_forDel': {'id': '0', 'pr': '[access restricted]'}, 'payBefore': '0000-00-00 00:00:00', 'placed': '0', 'taxAccount': '0', 'tradeChanel': {'id': '0', 'pr': '[access restricted]'}, 'userPresentation': '0', 'discountCard': {'id': '0', 'pr': '[access restricted]'}, 'details': '', 'settlementsKind': {'id': '1103300000000001', 'pr': 'Розрахунки з покупцями'}, 'remarkForPerson': '', 'remarkFromPerson': '', 'deliveryMethod_forDel': {'id': '1110400000001002', 'pr': 'Укр пошта'}, 'trackNum_forDel': '', 'taxManual': '0', 'taxIncluded': '0', 'cancelReason': {'id': '0', 'pr': '[access restricted]'}}, 'tableParts': {'tpGoods': {'72421': {'rowNum': '1', 'good': '1100300000032181', 'good__pr': 'ОДЯГ Цибулини лілії 10шт', 'price': '249.00000', 'qty': '1.000', 'baseQty': '1.000', 'priceAmount': '249.00', 'unit': '1103600000000001', 'unit__pr': '[access restricted]', 'mrkup_forDel': '0.00', 'discount': '0.00', 'amountCur': '249.00', 'discountPercent': '0.0', 'mrkupPercent_forDel': '0.0', 'ratio': '0.0000', 'weight': '0.000', 'gType_forDel': '0', 'gType_forDel__pr': None, 'gCharForDelete': '0', 'gCharForDelete__pr': '[access restricted]', 'qtyReserve': '0.000', 'qtyPurchase': '0.000', 'qtyProd': '0.000', 'supplier': '0', 'supplier__pr': None, 'supplierPrice': '0.00000', 'supplierCurrency': '0', 'supplierCurrency__pr': None, 'storage': '0', 'storage__pr': None, 'remark': '', 'promotion': '0', 'promotion__pr': '[access restricted]', 'accGood': '1119000000001016', 'accGood__pr': 'Товари', 'hash': '', 'comPrice': '0.00000', 'comAmount': '0.00', 'vatTax': '0', 'vatTax__pr': None, 'vatAmount': '0.00', 'salesTaxes': '0', 'salesTaxes__pr': '[access restricted]', 'sltTax1': '0', 'sltTax1__pr': None, 'sltRate1': '0.00', 'sltBase1': '0.00', 'sltAmount1': '0.00', 'sltTax2': '0', 'sltTax2__pr': None, 'sltRate2': '0.00', 'sltBase2': '0.00', 'sltAmount2': '0.00', 'printName': '', 'id': '72421'}}}, 'misc': False}
+
 resp = asyncio.run(
-    dd.configure_payload(
-        action='request',
-        document='documents.saleOrder',
-        fields={'id': 'id', 'remark': 'remark'},
-        filters_list=[
-            {'alias': 'remark', 'operator': '%', 'value': '17392727069'}]
-    )
+    dd.get_data_to_move(dd_rr)
 )
 
-response = asyncio.run(
-    dd.get_oreder_by_crm_id('17393133386')
+asyncio.run(
+    dd.make_move(resp)
 )
-
-print(resp)
-print(response)
-# from app.middlewares.lp_crm_client.lp_crm_client import LpCrmClient
-
-# lpc = LpCrmClient()
-
-# status_id = asyncio.run(lpc.get_status_id(status='НЕ АКТУАЛЬНО'))
-# print(status_id)
