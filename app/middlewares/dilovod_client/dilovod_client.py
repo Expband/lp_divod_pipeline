@@ -73,7 +73,7 @@ class DilovodClient:
             return None
 
     async def make_move(self, dilovod_response: dict) -> None:
-        dilovod_move_body = await self.get_data_to_move(
+        dilovod_move_body = await self.__dilovod_query_builder.get_data_to_move(
             dilovod_response=dilovod_response,
             saveType=1
         )
@@ -89,7 +89,7 @@ class DilovodClient:
                             dilovod id: {dilovod_response['header']['id']}\n
                             Will stored unregistred\n
                             Response: {response_data}''')
-            dilovod_move_body = await self.get_data_to_move(
+            dilovod_move_body = await self.__dilovod_query_builder.get_data_to_move(
                 dilovod_response=dilovod_response,
                 saveType=0
             )
