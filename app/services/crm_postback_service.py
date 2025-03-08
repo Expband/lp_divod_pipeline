@@ -8,8 +8,8 @@ class CrmPostbackService:
         self.__dilovod_client = dilovod_client
 
     async def process_postback_request(self, postback: dict, action: str):
-        for oredr in postback:
-            order_id: str | None = postback.get('order_id')
+        for order in postback:
+            order_id: str | None = order.get('order_id')
             if not order_id:
                 self.__loger.error(
                     f'''Unable to get "order_id" of "status_id" field \n
