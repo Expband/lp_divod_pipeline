@@ -101,7 +101,8 @@ class DilovodClient:
 
     async def make_shipment(self, dilovod_response: dict) -> None:
         dilovod_shipment_body: dict = await self.__dilovod_query_builder.get_data_to_shipment(
-            dilovod_object=dilovod_response)
+            dilovod_object=dilovod_response,
+            saveType=1)
         response = await self.__http_client.post(
             url=self.__config_parser.dilovod_api_url,
             payload=dilovod_shipment_body,
@@ -114,13 +115,13 @@ class DilovodClient:
                             dilovod id: {dilovod_response['header']['id']}\n
                             Will stored unregistred\n
                             Response: {response_data}''')
-            dilovod_move_body = await self.get_data_to_move(
+            dilovod_shipment_body = await self.__dilovod_query_builder.get_data_to_shipment(
                 dilovod_response=dilovod_response,
                 saveType=0
             )
             response = await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
-                payload=dilovod_move_body,
+                payload=dilovod_shipment_body,
                 parse_mode='json'
             )
             shipment_id: str = response_data.get('id')
