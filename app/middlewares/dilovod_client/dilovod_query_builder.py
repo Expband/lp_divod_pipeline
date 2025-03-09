@@ -96,8 +96,9 @@ class DilovodQueryBuilder:
             }
             request_body['params']['tableParts']['tpGoods'][f'{good}'] = good_object
         header_raw: dict = dilovod_object['header']
+        print(header_raw['id']['id'])
         header: dict = {
-            'id': 'documents.goodMoving',
+            'id': 'documents.sale',
             'date': header_raw['date'],
             'baseDoc': header_raw['id']['id'],
             'contract': header_raw['id']['id'],
