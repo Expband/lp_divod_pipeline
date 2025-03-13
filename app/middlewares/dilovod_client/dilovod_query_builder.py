@@ -96,7 +96,6 @@ class DilovodQueryBuilder:
             }
             request_body['params']['tableParts']['tpGoods'][f'{good}'] = good_object
         header_raw: dict = dilovod_object['header']
-        print(header_raw['id']['id'])
         header: dict = {
             'id': 'documents.sale',
             'date': header_raw['date'],
@@ -136,13 +135,13 @@ class DilovodQueryBuilder:
                 "analytics3": 0,
                 "amountCur": good_object_raw['price'],
                 "vatTax": "1105800000000023",
-                "vatAmount": 99.83,
+                "vatAmount": 98.33,
                 "amountCurExchange": 0,
                 "amountCurCommission": 0,
                 "exchangeRate": 0,
                 "cashGoal": 0
             }
-            request_body['params']['tableParts']['tpAnalytics'] = good_object
+            request_body['params']['tableParts']['tpAnalytics'].append(good_object)
         header_raw: dict = dilovod_object['header']
         header: dict = {
             'id': 'documents.cashIn',
@@ -159,13 +158,27 @@ class DilovodQueryBuilder:
             "corAccount": "1119000000001079",
             "account": "1119000000001023",
             "appendix": "",
-            "settlementsKind": "1103300000000001"
+            "settlementsKind": "1103300000000001",
+            "refund": 0,
+            "content": "",
+            "contract_forDel": 0,
+            "amountCur": header_raw['amountCur'],
+            "operType_forDel": 0,
+            "tax_forDel": 0,
+            "orderNumber": 0,
+            "loan_forDel": 0,
+            "taxAccount": 0,
+            "paymentID": "",
+            "posted": True,
+            "currencyExchange": 0,
+            "amountCurCommission": 0,
+            "exchangeRate_forDel": 0
         }
         delivery_method: str = header_raw['deliveryMethod_forDel']['pr']
         cashAccount: str = ''
         if delivery_method == 'Укр пошта':
             cashAccount = '1101100000001052'
-        if delivery_method == 'Нова пошта':
+        elif delivery_method == 'Нова пошта':
             cashAccount = '1101100000001053'
         header['cashAccount'] = cashAccount
         request_body['params'].setdefault('header', {})

@@ -1,15 +1,22 @@
-import asyncio
+from asyncio import Lock
 
 from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.middlewares.dilovod_client.dilovod_client import DilovodClient
+from app.middlewares.dilovod_client.dilovod_statistics_middleware import DilovodStatisticsMiddleware
 
 
 class CrmPostbackService:
-    def __init__(self, loger: LoguruLogger, dilovod_client: DilovodClient):
+    def __init__(
+        self, loger: LoguruLogger,
+        dilovod_client: DilovodClient,
+        dilovod_statistics_handler: DilovodStatisticsMiddleware):
         self.__loger = loger.logger
         self.__dilovod_client = dilovod_client
+        self.__dilovod_statistics = dilovod_statistics_handler
+        self.__lock = Lock()
 
-    async def process_postback_request(self, postback: dict, action: str):
+    async def process_postback_request(self, postback: list[dict], action: str):
+        self.__dilovod_statistics.capture_time(point='start')
         for order in postback:
             order_id: str | None = order.get('order_id')
             if not order_id:
@@ -17,34 +24,51 @@ class CrmPostbackService:
                     f'''Unable to get "order_id" of "status_id" field \n
                     from postback request: \n
                     "order_id": {order_id}''')
+                self.__dilovod_statistics.update_statistics(
+                    status='unsuccess',
+                    description='error_other')
                 continue
-            dilovod_order_id_response = await self.__dilovod_client.get_oreder_id_by_crm_id(order_id)
-            await asyncio.sleep(1)
-            if not dilovod_order_id_response:
-                self.__loger.error(f'''Unexpected error occured while getting Dilovod order id from CRM.\n
-                                    CRM "order_id": {order_id}''')
-                continue
-            try:
-                dilovod_order_id = dilovod_order_id_response[0]['id']
-            except Exception:
-                self.__loger.error(f'''Unable to get dilovod order id\n
-                                    CRM order_id: {order_id}\n
-                                    Response: \n{dilovod_order_id_response}''')
-                continue
-            dilovod_order_object: dict = await self.__dilovod_client.get_dilovod_order(
-                dilovod_id=dilovod_order_id)
-            await asyncio.sleep(1)
-            if action == 'move':
-                await self.__dilovod_client.make_move(
-                    dilovod_response=dilovod_order_object)
-                await asyncio.sleep(1)
-            if action == 'shipment':
-                shipment_id: str = await self.__dilovod_client.make_shipment(
-                    dilovod_response=dilovod_order_object
-                )
-                await self.__dilovod_client.make_cashIn(
-                    dilovod_response=dilovod_order_object,
-                    shipment_id=shipment_id
-                )
-                await asyncio.sleep(1)
-        await asyncio.sleep(1)
+            async with self.__lock:
+                dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_oreder_id_by_crm_id(order_id)
+                if not dilovod_order_id_response:
+                    self.__loger.error(f'''Unexpected error occured while getting Dilovod order id from CRM.\n
+                                        CRM "order_id": {order_id}''')
+                    continue
+                try:
+                    dilovod_order_id: str = dilovod_order_id_response[0]['id']
+                except Exception:
+                    self.__loger.error(f'''Unable to get dilovod order id\n
+                                        CRM order_id: {order_id}\n
+                                        Response: \n{dilovod_order_id_response}''')
+                    self.__dilovod_statistics.update_statistics(
+                        status='unsuccess',
+                        description='error_not_found'
+                    )
+                    continue
+                dilovod_order_object: dict = await self.__dilovod_client.get_dilovod_order(
+                    dilovod_id=dilovod_order_id)
+                if not dilovod_order_object:
+                    self.__dilovod_statistics.update_statistics(
+                        status='unsuccess',
+                        description='error_other'
+                    )
+                    self.__loger.error(f'''Wrong "dilovod_order_object"\n
+                                        Response: {dilovod_order_object}\n''')
+                    continue
+                if action == 'move':
+                    await self.__dilovod_client.make_move(
+                        dilovod_response=dilovod_order_object)
+                if action == 'shipment':
+                    shipment_id: str = await self.__dilovod_client.make_shipment(
+                        dilovod_response=dilovod_order_object
+                    )
+                    if not shipment_id:
+                        self.__loger.error(f'''Unable to get "shipment_id" for "dilovod_id": {dilovod_order_id}\n''')
+                        continue
+                    await self.__dilovod_client.make_cashIn(
+                        dilovod_response=dilovod_order_object,
+                        shipment_id=shipment_id
+                    )
+        self.__dilovod_statistics.capture_time(point='end')
+        statistics: dict = self.__dilovod_statistics.get_statistics()
+        self.__loger.info(statistics)
