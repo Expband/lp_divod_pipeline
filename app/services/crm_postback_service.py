@@ -17,9 +17,11 @@ class CrmPostbackService:
 
     async def process_postback_request(self, postback: list[dict], action: str):
         self.__dilovod_statistics.capture_time(point='start')
+        i: int = 0
         for order in postback:
             order_id: str | None = order.get('order_id')
-            if not order_id:
+            order_number: str | None = order.get('id')
+            if not order_id or not order_number:
                 self.__loger.error(
                     f'''Unable to get "order_id" of "status_id" field \n
                     from postback request: \n
@@ -29,7 +31,9 @@ class CrmPostbackService:
                     description='error_other')
                 continue
             async with self.__lock:
-                dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_oreder_id_by_crm_id(order_id)
+                dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_oreder_id_by_crm_id(
+                    crm_id=order_id,
+                    order_id=order_number)
                 if not dilovod_order_id_response:
                     self.__loger.error(f'''Unexpected error occured while getting Dilovod order id from CRM.\n
                                         CRM "order_id": {order_id}''')
@@ -69,6 +73,8 @@ class CrmPostbackService:
                         dilovod_response=dilovod_order_object,
                         shipment_id=shipment_id
                     )
+            i += 1
+        print(i)
         self.__dilovod_statistics.capture_time(point='end')
         statistics: dict = self.__dilovod_statistics.get_statistics()
         self.__loger.info(statistics)

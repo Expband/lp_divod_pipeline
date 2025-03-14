@@ -118,31 +118,27 @@ class DilovodQueryBuilder:
         request_body['params']['header'] = header
         return request_body
 
-    async def get_data_to_cashIn(self, dilovod_object: dict, shipment_id: str):
+    async def get_data_to_cashIn(self, dilovod_object: dict, shipment_id: str, saveType: int = 1):
         request_body: dict = await self.configure_payload(action='saveObject')
-        tableParts_raw: dict = dilovod_object['tableParts']
-        tpGoods_raw: dict = tableParts_raw['tpGoods']
-        goods_list: list[str] = tpGoods_raw.keys()
         request_body['params'] = {}
+        request_body['params']['saveType'] = saveType
         request_body['params'].setdefault('tableParts', {})
         request_body['params']['tableParts'].setdefault('tpAnalytics', [])
-        for good in goods_list:
-            good_object_raw: dict = tpGoods_raw[good]
-            good_object: dict = {
-                'rowNum': good_object_raw['rowNum'],
-                'analytics1': good_object_raw['good'],
-                "analytics2": 0,
-                "analytics3": 0,
-                "amountCur": good_object_raw['price'],
-                "vatTax": "1105800000000023",
-                "vatAmount": 98.33,
-                "amountCurExchange": 0,
-                "amountCurCommission": 0,
-                "exchangeRate": 0,
-                "cashGoal": 0
-            }
-            request_body['params']['tableParts']['tpAnalytics'].append(good_object)
         header_raw: dict = dilovod_object['header']
+        good_object: dict = {
+            'rowNum': "1",
+            'analytics1': header_raw['id'],
+            "analytics2": 0,
+            "analytics3": 0,
+            "amountCur": header_raw['amountCur'],
+            "vatTax": "1105800000000023",
+            "vatAmount": 98.33,
+            "amountCurExchange": 0,
+            "amountCurCommission": 0,
+            "exchangeRate": 0,
+            "cashGoal": 0
+        }
+        request_body['params']['tableParts']['tpAnalytics'].append(good_object)
         header: dict = {
             'id': 'documents.cashIn',
             'date': header_raw['date'],

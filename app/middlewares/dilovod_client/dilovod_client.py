@@ -16,7 +16,7 @@ class DilovodClient:
         self.__config_parser: ConfigParser = ConfigParser()
         self.__lock: Lock = Lock()
 
-    async def get_oreder_id_by_crm_id(self, crm_id: str):
+    async def get_oreder_id_by_crm_id(self, crm_id: str, order_id: str):
         fields: dict = {
             "id": "id",
             "remark": "remark"
@@ -26,6 +26,11 @@ class DilovodClient:
                 "alias": "remark",
                 "operator": "%",
                 "value": crm_id
+            },
+            {
+                "alias": "remark",
+                "operator": "%",
+                "value": order_id
             }
         ]
         request_body: dict = await self.__dilovod_query_builder.configure_payload(
@@ -172,4 +177,11 @@ class DilovodClient:
         response_data: dict = response.json()
         error: str | None = response_data.get('error')
         if error:
-            print(response_data)
+            self.__logger.error(f'''Unable to registher "cashIn for" for
+                                "dilovod_id": {dilovod_response['header']['id']['id']}\n
+                                Response: {response_data}''')
+            dilovod_cashIn_body: dict = await self.__dilovod_query_builder.get_data_to_cashIn(
+                dilovod_object=dilovod_response,
+                shipment_id=shipment_id,
+                saveType=0
+            )
