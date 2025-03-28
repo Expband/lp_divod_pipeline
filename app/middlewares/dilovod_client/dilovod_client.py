@@ -16,7 +16,7 @@ class DilovodClient:
         self.__config_parser: ConfigParser = ConfigParser()
         self.__lock: Lock = Lock()
 
-    async def get_oreder_id_by_crm_id(self, crm_id: str, order_id: str):
+    async def get_object_id_by_crm_id(self, crm_id: str, order_id: str, document: str):
         fields: dict = {
             "id": "id",
             "remark": "remark"
@@ -35,7 +35,7 @@ class DilovodClient:
         ]
         request_body: dict = await self.__dilovod_query_builder.configure_payload(
             action="request",
-            document="documents.saleOrder",
+            document=document,
             fields=fields,
             filters_list=filters_list
         )

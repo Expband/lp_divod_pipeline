@@ -31,9 +31,10 @@ class CrmPostbackService:
                     description='error_other')
                 continue
             async with self.__lock:
-                dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_oreder_id_by_crm_id(
+                dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_object_id_by_crm_id(
                     crm_id=order_id,
-                    order_id=order_number)
+                    order_id=order_number,
+                    document="documents.saleOrder")
                 if not dilovod_order_id_response:
                     self.__loger.error(f'''Unexpected error occured while getting Dilovod order id from CRM.\n
                                         CRM "order_id": {order_id}''')

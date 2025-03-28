@@ -27,3 +27,13 @@ class ConfigParser:
     def dilovod_api_key(self):
         DILOVOD_API_KEY = os.getenv('DILOVOD_API_KEY')
         return DILOVOD_API_KEY
+
+    @property
+    def novapost_api_key(self):
+        NOVAPOST_API_KEY = os.getenv('NOVAPOST_API_KEY')
+        return NOVAPOST_API_KEY
+
+    @property
+    def novapost_url(self):
+        NOVAPOST_URL = os.getenv('NOVAPOST_URL')
+        return NOVAPOST_URL

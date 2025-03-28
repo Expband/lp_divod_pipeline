@@ -1,6 +1,7 @@
 import requests
+from requests import Response
 from typing import Optional, Union
-
+from app.middlewares.http_client.request_error import RequestError
 from app.middlewares.logger.loguru_logger import LoguruLogger
 
 
@@ -11,31 +12,32 @@ class HTTPClient:
         if headers:
             self.__session.headers.update(headers)
 
-    async def _handle_request(self, request_func, url: str, **kwargs):
+    async def _handle_request(self, request_func, url: str, **kwargs) -> Response:
         """Загальний метод для виконання запиту та обробки помилок."""
         try:
-            response = request_func(url, **kwargs)
+            response: Response = request_func(url, **kwargs)
             response.raise_for_status()
             return response
         except requests.exceptions.Timeout:
             self.__logger.error(f'Timeout exception occurred for {url}')
-        except requests.exceptions.ConnectionError:
-            self.__logger.error(f'Connection error occurred for {url}')
+            return None
         except requests.exceptions.HTTPError as e:
-            self.__logger.error(
-                f'HTTP error occurred for {url}: {e.response.status_code} - {e.response.text}')
+            error_message = f'HTTP error occurred for {url}: {e.response.status_code} - {e.response.text}'
+            self.__logger.error(error_message)
+            raise RequestError(error_message, e.response.status_code)
         except requests.exceptions.RequestException as e:
             self.__logger.error(
                 f'Unexpected request error occurred for {url}: {str(e)}')
+            return None
 
-    async def get(self, url: str, headers: Optional[dict] = None, params: Optional[dict] = None):
+    async def get(self, url: str, headers: Optional[dict] = None, params: Optional[dict] = None) -> Response:
         return await self._handle_request(
             self.__session.get,
             url,
             headers=headers,
             params=params)
 
-    async def post(self, url: str, payload: Union[str, dict], headers: Optional[dict] = None, parse_mode: str = 'json'):
+    async def post(self, url: str, payload: Union[str, dict], headers: Optional[dict] = None, parse_mode: str = 'json') -> Response:
         if parse_mode == 'json':
             return await self._handle_request(
                 self.__session.post,
