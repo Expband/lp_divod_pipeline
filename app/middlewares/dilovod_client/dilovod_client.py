@@ -60,7 +60,7 @@ class DilovodClient:
             self.__logger.error(f'Unable to get Dilovod response for "order_id": {crm_id}')
             return None
 
-    async def get_dilovod_order(self, dilovod_id: str) -> dict:
+    async def get_dilovod_object_by_id(self, dilovod_id: str) -> dict:
         params: dict = {
             'id': dilovod_id
         }
@@ -78,14 +78,16 @@ class DilovodClient:
         if response_data:
             error = response_data.get('error')
             if error:
-                self.__logger.error(f'''Error occured while getting dilovod order\n
-                                dilovod "id": {dilovod_id}''')
+                self.__logger.error(f'''Error occured while getting dilovod
+                                    object\n
+                                    dilovod "id": {dilovod_id}''')
                 return None
             else:
                 return response_data
         else:
             self.__logger.error(f'''Unable to get dilovod order object\n
-                                dilovod id from "documents.saleOrders": {dilovod_id}''')
+                                dilovod id from "documents.saleOrders":
+                                {dilovod_id}''')
             return None
 
     async def make_move(self, dilovod_response: dict) -> None:

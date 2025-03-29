@@ -18,9 +18,10 @@ crm_postback_service = CrmPostbackService(
 )
 
 router = APIRouter(prefix='/postback')
+dilovod_router = APIRouter(prefix='/dilovod-sync')
 
 
-@router.post('/dilovod-sync/post-transfer')
+@dilovod_router.post('/post-transfer')
 async def dilovod_sync_post_transfer(request: Request):
     print('request')
     postback_request: dict = await request.json()
@@ -29,10 +30,20 @@ async def dilovod_sync_post_transfer(request: Request):
         action='move')
 
 
-@router.post('/dilovod-sync/finished')
+@dilovod_router.post('/finished')
 async def dilovod_sync_finished(request: Request):
     postback_request: dict = await request.json()
     await crm_postback_service.process_postback_request(
         postback=postback_request,
         action='shipment'
     )
+
+
+@dilovod_router.post('/refund')
+async def dilovod_sync_refund(request: Request):
+    postback_request: dict = await request.json()
+    await crm_postback_service.process_postback_request(
+        postback=postback_request,
+        action='refund'
+    )
+router.include_router(router=dilovod_router)
