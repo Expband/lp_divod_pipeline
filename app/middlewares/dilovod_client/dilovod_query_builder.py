@@ -1,9 +1,14 @@
+import datetime
+import pytz
+from typing import Literal
+
 from app.config.config_parser import ConfigParser
 
 
 class DilovodQueryBuilder:
     def __init__(self):
         self.__config_parser: ConfigParser = ConfigParser()
+        self.__kyiv_tz = pytz.timezone("Europe/Kiev")
 
     async def configure_payload(self,
                                 action: str,
@@ -26,7 +31,17 @@ class DilovodQueryBuilder:
             base_request['params']['filters'] = filters_list
         return base_request
 
-    async def get_data_to_move(self, dilovod_response: dict, saveType: int) -> dict:
+    async def get_data_to_move(
+            self,
+            dilovod_response: dict,
+            saveType: int,
+            move_type: Literal[
+                'from_sale',
+                'from_movement'],
+            date: str = None) -> dict:
+        if not date:
+            date: str = datetime.datetime.now(
+                tz=self.__kyiv_tz).strftime("%Y-%m-%d %H:%M:%S")
         request_body: dict = await self.configure_payload(action='saveObject')
         tableParts_raw: dict = dilovod_response['tableParts']
         tpGoods_raw: dict = tableParts_raw['tpGoods']
@@ -50,28 +65,78 @@ class DilovodQueryBuilder:
         header_raw: dict = dilovod_response['header']
         header: dict = {
             'id': 'documents.goodMoving',
-            'date': header_raw['date'],
+            'date': date,
             'baseDoc': header_raw['id']['id'],
             'firm': header_raw['firm']['id'],
-            'storage': '1100700000000001',
             'author': '1000200000001019',
             'business': '1115000000000001',
             'docMode': '1004000000000409',
             'priceType': '1101300000001001',
             'remark': header_raw['remark']
         }
-        delivery_method: str = header_raw['deliveryMethod_forDel']['pr']
         storageTo_id: str = ''
-        if delivery_method == 'Укр пошта':
-            storageTo_id = '1100100000001003'
-        if delivery_method == 'Нова пошта':
-            storageTo_id = '1100100000001002'
+        if move_type == 'from_sale':
+            header['storage'] = '1100700000000001'
+            delivery_method: str = header_raw.get('deliveryMethod_forDel', {}).get('pr')
+            if delivery_method == 'Укр пошта':
+                storageTo_id = '1100100000001003'
+            if delivery_method == 'Нова пошта':
+                storageTo_id = '1100100000001002'
+        if move_type == 'from_movement':
+            pervious_storage: str = header_raw['storageTo']['id']
+            header['storage'] = pervious_storage
+            if pervious_storage == '1100100000001002':  #if previous_storage is NovaPost
+                storageTo_id = '1100100000058677'
+            if pervious_storage == '1100100000001003':  #if previous_storage is UkrPost
+                storageTo_id = '1100100000058678'
         header['storageTo'] = storageTo_id
         request_body['params'].setdefault('header', {})
         request_body['params']['header'] = header
+        print(request_body)
         return request_body
 
-    async def get_data_to_shipment(self, dilovod_object: dict, saveType: int) -> dict:
+    async def change_order_status(
+            self,
+            dilovod_id: str,
+            status: Literal[
+                'completed',
+                'sent_to_post_office',
+                'refund_on_the_road',
+                'returned_to_branch',
+                'utilization',
+                'refund_taken',
+                'error',
+                ]) -> dict:
+        status_mapper: dict = {
+            'completed': '1111500000001002',
+            'sent_to_post_office': '1111500000001003',
+            'refund_on_the_road': '1111500000001004',
+            'returned_to_branch': '1111500000001005',
+            'utilization': '1111500000001006',
+            'refund_taken': '1111500000001007',
+            'error': '1111500000001008'
+        }
+        params: dict = {
+            'saveType': 1,
+            'header': {
+                'id': dilovod_id,
+                'state': status_mapper[status]
+            }
+        }
+        base_request: dict = await self.configure_payload(
+            action='saveObject',
+            params=params
+            )
+        return base_request
+
+    async def get_data_to_shipment(
+            self,
+            dilovod_object: dict,
+            saveType: int,
+            date: str = None) -> dict:
+        if not date:
+            date: str = datetime.datetime.now(
+                tz=self.__kyiv_tz).strftime("%Y-%m-%d %H:%M:%S")
         request_body: dict = await self.configure_payload(action='saveObject')
         tableParts_raw: dict = dilovod_object['tableParts']
         tpGoods_raw: dict = tableParts_raw['tpGoods']
@@ -98,7 +163,7 @@ class DilovodQueryBuilder:
         header_raw: dict = dilovod_object['header']
         header: dict = {
             'id': 'documents.sale',
-            'date': header_raw['date'],
+            'date': date,
             'baseDoc': header_raw['id']['id'],
             'contract': header_raw['id']['id'],
             'firm': header_raw['firm']['id'],
@@ -118,7 +183,15 @@ class DilovodQueryBuilder:
         request_body['params']['header'] = header
         return request_body
 
-    async def get_data_to_cashIn(self, dilovod_object: dict, shipment_id: str, saveType: int = 1):
+    async def get_data_to_cashIn(
+            self,
+            dilovod_object: dict,
+            shipment_id: str,
+            saveType: int = 1,
+            date: str = None):
+        if not date:
+            date: str = datetime.datetime.now(
+                tz=self.__kyiv_tz).strftime("%Y-%m-%d %H:%M:%S")
         request_body: dict = await self.configure_payload(action='saveObject')
         request_body['params'] = {}
         request_body['params']['saveType'] = saveType
@@ -141,7 +214,7 @@ class DilovodQueryBuilder:
         request_body['params']['tableParts']['tpAnalytics'].append(good_object)
         header: dict = {
             'id': 'documents.cashIn',
-            'date': header_raw['date'],
+            'date': date,
             'remark': header_raw['remark'],
             'baseDoc': shipment_id,
             'firm': header_raw['firm']['id'],

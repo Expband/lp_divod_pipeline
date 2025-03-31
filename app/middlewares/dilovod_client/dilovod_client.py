@@ -1,4 +1,5 @@
 from asyncio import Lock
+from typing import Literal
 
 from app.middlewares.dilovod_client.dilovod_query_builder import DilovodQueryBuilder
 from app.middlewares.dilovod_client.dilovod_statistics_middleware import DilovodStatisticsMiddleware
@@ -90,10 +91,16 @@ class DilovodClient:
                                 {dilovod_id}''')
             return None
 
-    async def make_move(self, dilovod_response: dict) -> None:
+    async def make_move(
+            self,
+            dilovod_response: dict,
+            move_type: Literal[
+                'from_sale',
+                'from_movement']) -> None:
         dilovod_move_body = await self.__dilovod_query_builder.get_data_to_move(
             dilovod_response=dilovod_response,
-            saveType=1
+            saveType=1,
+            move_type=move_type
         )
         async with self.__lock:
             response = await self.__http_client.post(
@@ -101,11 +108,12 @@ class DilovodClient:
                 payload=dilovod_move_body,
                 parse_mode='json'
             )
+        dilovod_order_id: str = dilovod_response['header']['id']['id']
         response_data = response.json()
         error: str | None = response_data.get('error')
         if error:
             self.__logger.info(f'''Unable to register document\n
-                            dilovod id: {dilovod_response['header']['id']}\n
+                            dilovod id: {dilovod_order_id}\n
                             Will stored unregistred\n
                             Response: {response_data}''')
             dilovod_move_body['params']['saveType'] = 0
@@ -119,13 +127,43 @@ class DilovodClient:
                 status='success',
                 description='unregistred_docs'
             )
+            await self.change_status(
+                dilovod_order_id=dilovod_order_id,
+                status='error')
             return
+        await self.change_status(
+            dilovod_order_id=dilovod_order_id,
+            status='sent_to_post_office')
         self.__dilovod_statistics.update_statistics(
             status='success',
             description='registred_docs'
         )
 
+    async def change_status(self,
+                            dilovod_order_id: str,
+                            status: Literal[
+                                'completed',
+                                'sent_to_post_office',
+                                'refund_on_the_road',
+                                'returned_to_branch',
+                                'utilization',
+                                'refund_taken',
+                                'error',
+                            ]):
+        dilovod_change_status_body: dict = await self.__dilovod_query_builder.change_order_status(
+            dilovod_id=dilovod_order_id,
+            status=status
+        )
+        async with self.__lock:
+            resp = await self.__http_client.post(
+                url=self.__config_parser.dilovod_api_url,
+                payload=dilovod_change_status_body,
+                parse_mode='json'
+            )
+        print(resp.json())
+
     async def make_shipment(self, dilovod_response: dict) -> None:
+        dilovod_order_id: str = dilovod_response['header']['id']['id']
         dilovod_shipment_body: dict = await self.__dilovod_query_builder.get_data_to_shipment(
             dilovod_object=dilovod_response,
             saveType=1)
@@ -139,7 +177,7 @@ class DilovodClient:
         error: str | None = response_data.get('error')
         if error:
             self.__logger.info(f'''Unable to register document\n
-                            dilovod id: {dilovod_response['header']['id']}\n
+                            dilovod id: {dilovod_order_id}\n
                             Will stored unregistred\n
                             Response: {response_data}''')
             dilovod_shipment_body = await self.__dilovod_query_builder.get_data_to_shipment(
@@ -157,7 +195,13 @@ class DilovodClient:
                 status='success',
                 description='unregistred_docs'
             )
+            await self.change_status(
+                dilovod_order_id=dilovod_order_id,
+                status='error')
             return shipment_id
+        await self.change_status(
+            dilovod_order_id=dilovod_order_id,
+            status='completed')
         self.__dilovod_statistics.update_statistics(
                 status='success',
                 description='registred_docs'

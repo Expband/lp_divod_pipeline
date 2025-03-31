@@ -77,7 +77,8 @@ class CrmPostbackService:
                     if not dilovod_order_object:
                         continue
                     await self.__dilovod_client.make_move(
-                        dilovod_response=dilovod_order_object)
+                        dilovod_response=dilovod_order_object,
+                        move_type='from_sale')
                 if action == 'shipment':
                     dilovod_order_object: dict = await self.get_dilovod_object_by_crm_id(
                         crm_id=order_id,
@@ -105,6 +106,9 @@ class CrmPostbackService:
                         dilovod_document='documents.goodMoving'
                     )
                     print(dilovod_movement_object)
+                    await self.__dilovod_client.make_move(
+                        dilovod_response=dilovod_movement_object,
+                        move_type='from_movement')
             i += 1
         self.__dilovod_statistics.capture_time(point='end')
         statistics: dict = self.__dilovod_statistics.get_statistics()
