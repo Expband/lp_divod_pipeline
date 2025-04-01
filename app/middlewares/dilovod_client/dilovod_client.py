@@ -51,7 +51,8 @@ class DilovodClient:
             if len(response_data) != 0:
                 return response_data
             else:
-                self.__logger.error(f'''No records with LP CRM "order_id": {crm_id}''')
+                self.__logger.error(f'''No records with
+                                    LP CRM "order_id": {crm_id}''')
                 return None
         else:
             self.__dilovod_statistics.update_statistics(
@@ -198,6 +199,10 @@ class DilovodClient:
             await self.change_status(
                 dilovod_order_id=dilovod_order_id,
                 status='error')
+            if not shipment_id:
+                self.__logger.error(f'''Shipmen wasn`t created
+                                    "dilovod_order_id": {dilovod_order_id}''')
+                return None
             return shipment_id
         await self.change_status(
             dilovod_order_id=dilovod_order_id,

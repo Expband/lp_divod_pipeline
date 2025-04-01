@@ -35,7 +35,7 @@ async def dilovod_sync_finished(request: Request):
     postback_request: dict = await request.json()
     await crm_postback_service.process_postback_request(
         postback=postback_request,
-        action='shipment'
+        action='shipment_and_cashIn'
     )
 
 
