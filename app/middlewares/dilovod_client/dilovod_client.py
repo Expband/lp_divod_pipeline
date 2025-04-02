@@ -1,5 +1,6 @@
 from asyncio import Lock
 from typing import Literal
+from requests import Response
 
 from app.middlewares.dilovod_client.dilovod_query_builder import DilovodQueryBuilder
 from app.middlewares.dilovod_client.dilovod_statistics_middleware import DilovodStatisticsMiddleware
@@ -17,7 +18,7 @@ class DilovodClient:
         self.__config_parser: ConfigParser = ConfigParser()
         self.__lock: Lock = Lock()
 
-    async def get_object_id_by_crm_id(self, crm_id: str, order_id: str, document: str):
+    async def get_order_id_by_crm_id(self, crm_id: str, order_id: str, document: str):
         fields: dict = {
             "id": "id",
             "remark": "remark"
@@ -92,53 +93,113 @@ class DilovodClient:
                                 {dilovod_id}''')
             return None
 
+    async def get_orders_in_status(self, status: Literal[
+                                'completed',
+                                'sent_to_post_office',
+                                'refund_on_the_road',
+                                'returned_to_branch',
+                                'utilization',
+                                'refund_taken',
+                                'error',
+                            ]):
+        status_mapper: dict = {
+            'completed': '1111500000001002',
+            'sent_to_post_office': '1111500000001003',
+            'refund_on_the_road': '1111500000001004',
+            'returned_to_branch': '1111500000001005',
+            'utilization': '1111500000001006',
+            'refund_taken': '1111500000001007',
+            'error': '1111500000001008'
+        }
+        fields: dict = {
+            "id": "id",
+            "remark": "remark",
+            "name": "name",
+            "state": "state"
+        }
+        filters: dict = {
+            "alias": "state",
+            "operator": "=",
+            "value": status_mapper[status]
+            }
+        request_body: dict = await self.__dilovod_query_builder.configure_payload(
+            fields=fields,
+            document='documents.saleOrder',
+            filters_list=[filters],
+            action='request')
+        response: Response = await self.__http_client.post(
+                url=self.__config_parser.dilovod_api_url,
+                payload=request_body,
+                parse_mode='json'
+            )
+        response: dict = response.json()
+        if len(response) == 0:
+            self.__logger.info(f'0 orders in status: {status}')
+            return None
+        order_objects: list[dict] = []
+        for order in response:
+            order_id: str = order['id']
+            params: dict = {
+                'id': order_id
+            }
+            get_object_payload: dict = await self.__dilovod_query_builder.configure_payload(
+                action='getObject',
+                params=params)
+            order_object: dict = await self.request_handler(
+                request_payload=get_object_payload)
+            print(type(order_object), order_object)
+            if order_object:
+                order_objects.append(order_object)
+            else:
+                self.__logger.error(f'Unable to get order from dilovod by "id": {order_id}')
+        print(order_objects)
+
+    async def request_handler(self, request_payload: dict) -> str | bool:
+        async with self.__lock:
+            response: Response = await self.__http_client.post(
+                url=self.__config_parser.dilovod_api_url,
+                payload=request_payload,
+                parse_mode='json'
+            )
+        response: dict = response.json()
+        error: bool = await self.response_handler(response=response)
+        if error:
+            self.__logger.info(f'''Unsuccessfull request''')
+            return False
+        else:
+            self.__logger.info(f'''Successfull request''')
+            return response
+
+    async def response_handler(self, response: dict):
+        error: dict | None = response.get('error')
+        if error:
+            return True
+        return False
+
     async def make_move(
             self,
             dilovod_response: dict,
             move_type: Literal[
                 'from_sale',
-                'from_movement']) -> None:
+                'from_movement'],
+            save_type: Literal[
+                'registred',
+                'unregistred'
+                ]) -> bool:
+        if save_type == 'registred':
+            save_type = 1
+        if save_type == 'unregistred':
+            save_type = 0
         dilovod_move_body = await self.__dilovod_query_builder.get_data_to_move(
             dilovod_response=dilovod_response,
-            saveType=1,
+            saveType=save_type,
             move_type=move_type
         )
-        async with self.__lock:
-            response = await self.__http_client.post(
-                url=self.__config_parser.dilovod_api_url,
-                payload=dilovod_move_body,
-                parse_mode='json'
-            )
-        dilovod_order_id: str = dilovod_response['header']['id']['id']
-        response_data = response.json()
-        error: str | None = response_data.get('error')
-        if error:
-            self.__logger.info(f'''Unable to register document\n
-                            dilovod id: {dilovod_order_id}\n
-                            Will stored unregistred\n
-                            Response: {response_data}''')
-            dilovod_move_body['params']['saveType'] = 0
-            async with self.__lock:
-                response = await self.__http_client.post(
-                    url=self.__config_parser.dilovod_api_url,
-                    payload=dilovod_move_body,
-                    parse_mode='json'
-                )
-            self.__dilovod_statistics.update_statistics(
-                status='success',
-                description='unregistred_docs'
-            )
-            await self.change_status(
-                dilovod_order_id=dilovod_order_id,
-                status='error')
-            return
-        await self.change_status(
-            dilovod_order_id=dilovod_order_id,
-            status='sent_to_post_office')
-        self.__dilovod_statistics.update_statistics(
-            status='success',
-            description='registred_docs'
-        )
+        response: str | bool = await self.request_handler(request_payload=dilovod_move_body)
+        if response:
+            return response['id']
+        else:
+            return False
 
     async def change_status(self,
                             dilovod_order_id: str,
@@ -156,12 +217,11 @@ class DilovodClient:
             status=status
         )
         async with self.__lock:
-            resp = await self.__http_client.post(
+            await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
                 payload=dilovod_change_status_body,
                 parse_mode='json'
             )
-        print(resp.json())
 
     async def make_shipment(self, dilovod_response: dict) -> None:
         dilovod_order_id: str = dilovod_response['header']['id']['id']
@@ -203,10 +263,18 @@ class DilovodClient:
                 self.__logger.error(f'''Shipmen wasn`t created
                                     "dilovod_order_id": {dilovod_order_id}''')
                 return None
+            await self.change_status(
+                dilovod_order_id=shipment_id,
+                status='error'
+            )
             return shipment_id
         await self.change_status(
             dilovod_order_id=dilovod_order_id,
             status='completed')
+        await self.change_status(
+            dilovod_order_id=response_data['id'],
+            status='completed'
+        )
         self.__dilovod_statistics.update_statistics(
                 status='success',
                 description='registred_docs'

@@ -21,7 +21,7 @@ class CrmPostbackService:
             crm_id: str,
             crm_order_number: str,
             dilovod_document: str) -> dict:
-        dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_object_id_by_crm_id(
+        dilovod_order_id_response: list[dict] = await self.__dilovod_client.get_order_id_by_crm_id(
                     crm_id=crm_id,
                     order_id=crm_order_number,
                     document=dilovod_document)
@@ -67,7 +67,7 @@ class CrmPostbackService:
         return prop_values
 
     async def get_ids(self, crm_order: dict[str]) -> dict[str]:
-        order_fields: list[str] = ['sss', 'order_id']
+        order_fields: list[str] = ['id', 'order_id']
         try:
             order_fields_values: dict = await self.get_dict_props(
                 crm_order=crm_order,
@@ -80,7 +80,7 @@ class CrmPostbackService:
             return None
         return order_fields_values
 
-    async def get_object_by_crm(self, order: dict)
+    async def get_object_by_crm(self, order: dict):
         order_fields_values: dict = await self.get_ids(crm_order=order)
         if not order_fields_values:
             return None
@@ -97,14 +97,45 @@ class CrmPostbackService:
     async def make_move(
             self,
             crm_postback: list[dict],
-            type: Literal['from_sale', 'from_movement']):
+            move_from: Literal['from_sale', 'from_movement'],
+            save_mode: Literal[
+                'save_anyway',
+                'try_register',
+                'dont_register']):
         for order in crm_postback:
             dilovod_order_object: dict = await self.get_object_by_crm(order=order)
             if not dilovod_order_object:
                 continue
-            await self.__dilovod_client.make_move(
+            if save_mode == 'save_anyway':
+                response: str | bool = await self.__dilovod_client.make_move(
+                        dilovod_response=dilovod_order_object,
+                        move_type=move_from,
+                        save_type='registred')
+                if response is False:
+                    response: str | bool = await self.__dilovod_client.make_move(
+                        dilovod_response=dilovod_order_object,
+                        move_type=move_from,
+                        save_type='unregistred')
+                    await self.__dilovod_client.change_status(
+                        dilovod_order_id=dilovod_order_object['header']['id']['id'],
+                        status='error'
+                    )
+                else:
+                    await self.__dilovod_client.change_status(
+                        dilovod_order_id=dilovod_order_object['header']['id']['id'],
+                        status='sent_to_post_office'
+                    )
+                    continue
+            if save_mode == 'try_register':
+                await self.__dilovod_client.make_move(
                     dilovod_response=dilovod_order_object,
-                    move_type=type)
+                    move_type=move_from,
+                    save_type='registred')
+            if save_mode == 'dont_register':
+                await self.__dilovod_client.make_move(
+                    move_type=move_from,
+                    save_type='unregistred'
+                )
 
     async def make_shipment_and_cashin(self, crm_postback: list[dict]):
         for order in crm_postback:
@@ -116,6 +147,9 @@ class CrmPostbackService:
                     )
             if not shipment_id:
                 continue
+            await self.__dilovod_client.change_status(
+                dilovod_order_id=dilovod_order_object['header']['id']['id'],
+                status='completed')
             await self.__dilovod_client.make_cashIn(
                     dilovod_response=dilovod_order_object,
                     shipment_id=shipment_id
@@ -138,15 +172,30 @@ class CrmPostbackService:
             dilovod_order_object: dict = await self.get_object_by_crm(order=order)
             if not dilovod_order_object:
                 continue
-            await self.__dilovod_client.make_move(
+            response: str | bool = await self.__dilovod_client.make_move(
                         dilovod_response=dilovod_movement_object,
-                        move_type='from_movement')
+                        move_type='from_movement',
+                        save_type='registred')
+            if response:
+                await self.__dilovod_client.change_status(
+                    dilovod_order_id=dilovod_order_object['header']['id']['id'],
+                    status='refund_on_the_road')
+            else:
+                await self.__dilovod_client.change_status(
+                    dilovod_order_id=dilovod_order_object['header']['id']['id'],
+                    status='error'
+                )
 
-    async def process_postback_request(self, postback: list[dict], action: str):
+    async def process_postback_request(
+            self,
+            postback: list[dict],
+            action: str):
         self.__dilovod_statistics.capture_time(point='start')
-        i: int = 0
         if action == 'move':
-            await self.make_move(crm_postback=postback)
+            await self.make_move(
+                crm_postback=postback,
+                move_from='from_sale',
+                save_mode='save_anyway')
         if action == 'shipment_and_cashIn':
             await self.make_shipment_and_cashin(crm_postback=postback)
         if action == 'refund':
