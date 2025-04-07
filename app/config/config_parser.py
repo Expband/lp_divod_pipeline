@@ -37,3 +37,13 @@ class ConfigParser:
     def novapost_url(self):
         NOVAPOST_URL = os.getenv('NOVAPOST_URL')
         return NOVAPOST_URL
+
+    @property
+    def ukrpost_url(self):
+        UKRPOST_URL = os.getenv('UKRPOST_URL')
+        return UKRPOST_URL
+
+    @property
+    def ukrpost_api_key(self):
+        UKRPOST_API_KEY = os.getenv('UKRPOST_API_KEY')
+        return UKRPOST_API_KEY

@@ -1,19 +1,27 @@
-from apscheduler.schedulers.blocking import BlockingScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+#---------------------------------------------------------------------------------------------------------
+# from apscheduler.schedulers.blocking import BlockingScheduler
+# from apscheduler.triggers.interval import IntervalTrigger
+import asyncio
 
-from app.tasks.job_mail_tracking import mail_tracking_wrapper
-
-# Створення планувальника
-scheduler = BlockingScheduler()
-
-# Додавання завдання до планувальника: виконання кожні 5 секунд
-scheduler.add_job(mail_tracking_wrapper, IntervalTrigger(seconds=25))
-
-# Запуск планувальника
-scheduler.start()
+from app.tasks.job_mail_tracking import mail_tracking
+from app.tasks.scheduler import Scheduler
 
 
+#---------------------------------------------------------------------------------------------------
 
+
+async def main():
+    sc = Scheduler()
+    sc.start()
+    sc.add_job(mail_tracking, hours=0, minutes=0, seconds=10)  # Запуск кожні 10 секунд
+
+    print("✅ Скедюлер запущено, очікуємо виконання задач...")
+    await asyncio.Event().wait()  # Блокування, щоб програма не завершувалась
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+#----------------------------------------------------------------------------------------------------------
 # from app.services.crm_postback_service import CrmPostbackService
 # from app.middlewares.logger.loguru_logger import LoguruLogger
 # from app.middlewares.dilovod_client.dilovod_client import DilovodClient

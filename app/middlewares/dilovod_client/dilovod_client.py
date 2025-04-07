@@ -147,12 +147,11 @@ class DilovodClient:
                 params=params)
             order_object: dict = await self.request_handler(
                 request_payload=get_object_payload)
-            print(type(order_object), order_object)
             if order_object:
                 order_objects.append(order_object)
             else:
                 self.__logger.error(f'Unable to get order from dilovod by "id": {order_id}')
-        print(order_objects)
+        return order_objects
 
     async def request_handler(self, request_payload: dict) -> str | bool:
         async with self.__lock:
