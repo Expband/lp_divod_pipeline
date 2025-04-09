@@ -138,6 +138,7 @@ class DilovodClient:
             return None
         order_objects: list[dict] = []
         for order in response:
+            print(order)
             order_id: str = order['id']
             params: dict = {
                 'id': order_id

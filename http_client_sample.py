@@ -1,8 +1,23 @@
 #---------------------------------------------------------------------------------------------------------
-# from apscheduler.schedulers.blocking import BlockingScheduler
-# from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 import asyncio
 
+from app.middlewares.ukrpost_client.urkpost_client import UkrpostClient
+# upc = UkrpostClient()
+# maper = {}
+# expml = {
+#     'header': {
+#         'id': {
+#             'id': '2121'
+#         },
+#         'deliveryRemark_forDel': '0503750637681'
+#     }
+# }
+# exmpl1 = {}
+# res = asyncio.run(upc.check_bunch_ttn_statuses(
+#     dilovod_orders=[expml],
+#     ttn_mapper=exmpl1))
 from app.tasks.job_mail_tracking import mail_tracking
 from app.tasks.scheduler import Scheduler
 
