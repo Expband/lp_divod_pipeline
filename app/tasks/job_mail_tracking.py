@@ -36,21 +36,80 @@ async def mail_tracking():
         await process_sorted_orders(sorted_orders=sorted_orders_on_road)
     else:
         logger.info('No mails in "on the road" state')
-    if returned_to_branch:
-        sorted_orders_on_branch: dict = await sort_orders_by_delivery(
-            dilovod_orders=returned_to_branch)
-    else:
-        logger.info('No mails in "on branch" state')
+    # if returned_to_branch:
+    #     sorted_orders_on_branch: dict = await sort_orders_by_delivery(
+    #         dilovod_orders=returned_to_branch)
+    #     await process_sorted_orders(sorted_orders=sorted_orders_on_branch)
+    # else:
+    #     logger.info('No mails in "on branch" state')
 
 
 async def process_sorted_orders(sorted_orders: dict[str, list[dict]]):
-    ttn_statuses: dict = {}
+    novapost_ttn_statuses: dict = {}
+    ukrpost_ttn_statuses: dict = {}
+    sum_of_shimpents: int = 0
     for delivery_method, orders in sorted_orders.items():
         if delivery_method == '1110400000001001':
-            resp = await track_novapost(ttn_statuses=ttn_statuses, dilovod_orders=orders)
+            novapost_resps, novapost_ttn_statuses = await track_novapost(
+                dilovod_orders=orders)
+            novapost_ttn_statuses = await remap_if_new_ttn(
+                np_responses=novapost_resps,
+                ttn_statuses=novapost_ttn_statuses)
+            new_ttns: list[str] = []
+            for s_data in novapost_ttn_statuses.values():
+                new_ttns.append(s_data['ttn_number'])
+            np_ttn_chunked: list[str] = await novapost_qb.chunk_ttn_list(new_ttns, 99)
+            np_request_body: list[dict] = await novapost_qb.fortam_shipment_doc(
+                ttn_chunked_list=np_ttn_chunked
+            )
+            np_responses: list[dict] = await novapost_client.check_bunch_ttn_statuses(
+                request_body_list=np_request_body)
+            print(np_responses)
         if delivery_method == '1110400000001002':
-            resp = await track_ukr_post(ttn_statuses=ttn_statuses, dilovod_orders=orders)
-    print('ttn statuses: ', ttn_statuses)
+            await track_ukr_post(ttn_statuses=ukrpost_ttn_statuses, dilovod_orders=orders)
+    # if novapost_ttn_statuses:
+    #     nova_shipments_in_statuse: list[str] = await get_shipment_in_status(
+    #         ttn_statuses_store=novapost_ttn_statuses,
+    #         criteria='9'
+    #     )
+    # if ukrpost_ttn_statuses:
+    #     ukr_shipments_in_statuse: list[str] = await get_shipment_in_status(
+    #         ttn_statuses_store=ukrpost_ttn_statuses,
+    #         criteria='41'
+    #     )
+    # sum_of_shimpents: int = len(nova_shipments_in_statuse) + len(ukr_shipments_in_statuse)
+    # print('sum_of_shimpents: ', sum_of_shimpents)
+    # print('novapost ttn statuses: ', novapost_ttn_statuses)
+    # print('ukrpost ttn statuses: ', ukrpost_ttn_statuses)
+
+
+async def get_shipment_in_status(
+        ttn_statuses_store: dict,
+        criteria: str) -> list[str]:
+    orders_by_criteria: list[str] = []
+    for dilovod_id, order_info in ttn_statuses_store.items():
+        order_statuse: str = order_info['status_id']
+        if order_statuse == criteria:
+            orders_by_criteria.append(dilovod_id)
+    return orders_by_criteria
+
+
+async def process_np_response(
+        np_responses: list[dict],
+        np_ttn_statuses: dict) -> dict:
+    for response in np_responses:
+        status = response.get('success')
+        if not status:
+            logger.error(f'''Malvared or unsuccessfull Novapost Response:
+                        {response}''')
+            continue
+        shipments_data: list[dict] = response.get('data')
+        for shipment in shipments_data:
+            shipment_ttn: str = shipment.get('Number')
+            shipment_status: str = shipment.get('StatusCode')
+            if not shipment_ttn or not shipment_status:
+                logger.error(f'''Malvared or unsuccessfull shipment object:
+                        {shipment}''')
 
 
 async def sort_orders_by_delivery(dilovod_orders: list[dict]):
@@ -61,15 +120,50 @@ async def sort_orders_by_delivery(dilovod_orders: list[dict]):
     return dict(sorted_orders)
 
 
-async def track_novapost(ttn_statuses: dict, dilovod_orders: list[dict]):
+async def track_novapost(dilovod_orders: list[dict]):
+    np_request_body, ttn_statuses = await novapost_qb.prepare_request(
+                dilovod_orders=dilovod_orders
+            )
     try:
         np_responses: list[dict] = await novapost_client.check_bunch_ttn_statuses(
-            dilovod_orders=dilovod_orders,
-            ttn_statuses=ttn_statuses
+            request_body_list=np_request_body,
         )
-        return np_responses
+        return np_responses, ttn_statuses
     except ValueError:
         logger.warning('0 TTN`s was found in "refund_on_the_road"')
+
+
+async def remap_if_new_ttn(
+        np_responses: list[dict],
+        ttn_statuses: dict) -> dict:
+    for np_resp in np_responses:
+        success: str = np_resp.get('success')
+        if not success:
+            logger.error(f'''Unsuccess NovaPost response:
+                        {np_resp}''')
+            continue
+        np_resp_data: list[dict] = np_resp.get('data')
+        if not np_resp_data:
+            logger.error(f'''Unable to get data from NovaPost response:
+                        {np_resp}''')
+            continue
+        for shipment in np_resp_data:
+            old_ttn = shipment.get('Number')
+            new_ttn = shipment.get('LastCreatedOnTheBasisNumber')
+            if new_ttn:
+                dilovod_id: str = await find_key_by_ttn_number(
+                    ttn=old_ttn,
+                    data=ttn_statuses
+                )
+                ttn_statuses[dilovod_id]['ttn_number'] = new_ttn
+    return ttn_statuses
+
+
+async def find_key_by_ttn_number(ttn, data):
+    for key, value in data.items():
+        if value.get('ttn_number') == ttn:
+            return key
+    return None
 
 
 async def track_ukr_post(dilovod_orders: list[dict], ttn_statuses: dict):
@@ -80,4 +174,3 @@ async def track_ukr_post(dilovod_orders: list[dict], ttn_statuses: dict):
         )
     except ValueError:
         logger.warning('0 TTN`s was found in "refund_on_the_road"')
-    print(request_chunked)

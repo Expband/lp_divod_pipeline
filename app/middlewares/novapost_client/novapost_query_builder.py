@@ -33,7 +33,7 @@ class NovaPostQueryBuilder:
                                     Order will be skiped
                                     Dilovod order: {order}''')
                 continue
-            ttn_dilovod_id_mapper[ttn_number] = {'dilovod_id': order_id}
+            ttn_dilovod_id_mapper[order_id] = {'ttn_number': ttn_number}
             ttn_numbers.append(ttn_number)
         if not ttn_numbers:
             raise ValueError('None TTN found. Unable to continue process')
@@ -41,6 +41,12 @@ class NovaPostQueryBuilder:
             ttn=ttn_numbers,
             units_per_chunl=99
         )
+        requests_body_list: list[dict] = await self.fortam_shipment_doc(
+            ttn_chunked_list=ttn_chunked_list
+        )
+        return requests_body_list, ttn_dilovod_id_mapper
+
+    async def fortam_shipment_doc(self, ttn_chunked_list: list):
         requests_body_list: list[dict] = []
         for chunk in ttn_chunked_list:
             documents_list_chunked: list[dict] = []
@@ -58,4 +64,4 @@ class NovaPostQueryBuilder:
                 }
             }
             requests_body_list.append(base_request)
-        return requests_body_list, ttn_dilovod_id_mapper
+        return requests_body_list

@@ -15,17 +15,9 @@ class NovaPostClient:
 
     async def check_bunch_ttn_statuses(
             self,
-            ttn_statuses: dict,
-            dilovod_orders: list[dict]):
-        try:
-            novapost_requests, ttn_mapper = await self.__novapost_query_builder.prepare_request(
-                dilovod_orders=dilovod_orders
-            )
-        except ValueError as e:
-            self.__logger.error(f'Error occured while ttn retviring: {e}')
-            return None
+            request_body_list: list[dict]) -> list[dict]:
         novapost_reponses: list[dict] = []
-        for request in novapost_requests:
+        for request in request_body_list:
             try:
                 response: dict = await self.__http_client.post(
                     url=self.__config.novapost_url,
@@ -33,22 +25,18 @@ class NovaPostClient:
                     parse_mode='json'
                 )
                 response_dict: dict = response.json()
-                novapost_reponses.append(response_dict)
                 if not response_dict:
                     self.__logger.error(f'''Malvared Novapost response.
                                     Response: {response}''')
                     continue
-                chunk_ttn_statuses: dict = await self.process_response(
-                    ttn_mapper=ttn_mapper,
-                    response_dict=response_dict)
-                ttn_statuses.update(chunk_ttn_statuses)
+                novapost_reponses.append(response_dict)
             except RequestError as e:
                 self.__logger.error(f'''NovaPost API http error occured
                                     while getting ttn`s
                                     status code: {e.status_code}
                                     error message: {e.message}''')
                 continue
-        return ttn_statuses
+        return novapost_reponses
 
     async def novapost_status_mapper(
             self,
@@ -59,7 +47,9 @@ class NovaPostClient:
             if shipment_number:
                 shipment_status_code: str = shipment.get('StatusCode')
                 if shipment_status_code:
+                    new_ttn: str = shipment.get('LastCreatedOnTheBasisNumber')
                     ttn_mapper[shipment_number]['status_id'] = shipment_status_code
+                    ttn_mapper[shipment_number]['new_ttn'] = new_ttn
                 else:
                     self.__logger.error(f'''Unable to get StatusCode
                                         for shipment.
