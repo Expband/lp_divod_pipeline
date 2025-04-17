@@ -127,18 +127,18 @@ class DilovodClient:
             document='documents.saleOrder',
             filters_list=[filters],
             action='request')
-        response: Response = await self.__http_client.post(
-                url=self.__config_parser.dilovod_api_url,
-                payload=request_body,
-                parse_mode='json'
-            )
+        async with self.__lock:
+            response: Response = await self.__http_client.post(
+                    url=self.__config_parser.dilovod_api_url,
+                    payload=request_body,
+                    parse_mode='json'
+                )
         response: dict = response.json()
         if len(response) == 0:
             self.__logger.info(f'0 orders in status: {status}')
             return None
         order_objects: list[dict] = []
         for order in response:
-            print(order)
             order_id: str = order['id']
             params: dict = {
                 'id': order_id
@@ -164,7 +164,8 @@ class DilovodClient:
         response: dict = response.json()
         error: bool = await self.response_handler(response=response)
         if error:
-            self.__logger.info(f'''Unsuccessfull request''')
+            self.__logger.info(f'''Unsuccessfull request
+                                Response: {response}''')
             return False
         else:
             self.__logger.info(f'''Successfull request''')

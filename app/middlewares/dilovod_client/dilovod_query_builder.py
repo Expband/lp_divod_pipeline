@@ -92,7 +92,6 @@ class DilovodQueryBuilder:
         header['storageTo'] = storageTo_id
         request_body['params'].setdefault('header', {})
         request_body['params']['header'] = header
-        print(request_body)
         return request_body
 
     async def change_order_status(
@@ -252,5 +251,4 @@ class DilovodQueryBuilder:
         header['cashAccount'] = cashAccount
         request_body['params'].setdefault('header', {})
         request_body['params']['header'] = header
-        print(request_body)
         return request_body

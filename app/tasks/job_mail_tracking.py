@@ -1,6 +1,6 @@
 import pytz
 from collections import defaultdict
-from typing import Any
+from typing import Literal
 from datetime import datetime
 
 
@@ -64,7 +64,8 @@ async def process_sorted_orders(sorted_orders: dict[str, list[dict]]):
             )
             np_responses: list[dict] = await novapost_client.check_bunch_ttn_statuses(
                 request_body_list=np_request_body)
-            print(np_responses)
+            # print(np_responses)
+            print(novapost_ttn_statuses)
         if delivery_method == '1110400000001002':
             await track_ukr_post(ttn_statuses=ukrpost_ttn_statuses, dilovod_orders=orders)
     # if novapost_ttn_statuses:
@@ -110,6 +111,7 @@ async def process_np_response(
             if not shipment_ttn or not shipment_status:
                 logger.error(f'''Malvared or unsuccessfull shipment object:
                         {shipment}''')
+                continue
 
 
 async def sort_orders_by_delivery(dilovod_orders: list[dict]):
@@ -155,13 +157,13 @@ async def remap_if_new_ttn(
                     ttn=old_ttn,
                     data=ttn_statuses
                 )
-                ttn_statuses[dilovod_id]['ttn_number'] = new_ttn
+                ttn_statuses[dilovod_id]['new_ttn_number'] = new_ttn
     return ttn_statuses
 
 
-async def find_key_by_ttn_number(ttn, data):
+async def find_key_by_ttn_number(ttn, data, key: Literal['ttn', 'new_ttn']):
     for key, value in data.items():
-        if value.get('ttn_number') == ttn:
+        if value.get(key)==ttn:
             return key
     return None
 
