@@ -127,15 +127,21 @@ class CrmPostbackService:
                     )
                     continue
             if save_mode == 'try_register':
-                await self.__dilovod_client.make_move(
+                response: str | bool = await self.__dilovod_client.make_move(
                     dilovod_response=dilovod_order_object,
                     move_type=move_from,
                     save_type='registred')
+                if not response:
+                    self.__loger.error(f'''Unable to move dilovod order:
+                                        {order}''')
             if save_mode == 'dont_register':
-                await self.__dilovod_client.make_move(
+                response: str | bool = await self.__dilovod_client.make_move(
                     move_type=move_from,
                     save_type='unregistred'
                 )
+                if not response:
+                    self.__loger.error(f'''Unable to move dilovod order:
+                                        {order}''')
 
     async def make_shipment_and_cashin(self, crm_postback: list[dict]):
         for order in crm_postback:

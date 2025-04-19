@@ -45,6 +45,8 @@ class DilovodQueryBuilder:
         request_body: dict = await self.configure_payload(action='saveObject')
         tableParts_raw: dict = dilovod_response['tableParts']
         tpGoods_raw: dict = tableParts_raw['tpGoods']
+        if not isinstance(tpGoods_raw, dict):
+            return None
         goods_list: list[str] = tpGoods_raw.keys()
         request_body['params'] = {}
         request_body['params']['saveType'] = saveType

@@ -1,5 +1,5 @@
 from asyncio import Lock
-from typing import Literal
+from typing import Literal, Optional
 from requests import Response
 
 from app.middlewares.dilovod_client.dilovod_query_builder import DilovodQueryBuilder
@@ -196,6 +196,11 @@ class DilovodClient:
             saveType=save_type,
             move_type=move_type
         )
+        if not dilovod_move_body:
+            self.__logger.error(f'''Unable to configure "move" request body
+                                for dilovod order. Dilovod order:
+                                {dilovod_response}''')
+            return False
         response: str | bool = await self.request_handler(request_payload=dilovod_move_body)
         if response:
             return response['id']
@@ -203,7 +208,7 @@ class DilovodClient:
             return False
 
     async def change_status(self,
-                            dilovod_order_id: str,
+                            dilovod_order_id: str = None,
                             status: Literal[
                                 'completed',
                                 'sent_to_post_office',
@@ -212,11 +217,15 @@ class DilovodClient:
                                 'utilization',
                                 'refund_taken',
                                 'error',
-                            ]):
-        dilovod_change_status_body: dict = await self.__dilovod_query_builder.change_order_status(
-            dilovod_id=dilovod_order_id,
-            status=status
-        )
+                            ] = None,
+                            request_body: dict = None):
+        if request_body:
+            dilovod_change_status_body = request_body
+        else:
+            dilovod_change_status_body: dict = await self.__dilovod_query_builder.change_order_status(
+                dilovod_id=dilovod_order_id,
+                status=status
+            )
         async with self.__lock:
             await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
