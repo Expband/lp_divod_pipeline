@@ -21,7 +21,7 @@ class NovaPostQueryBuilder:
 
     async def prepare_request(
             self,
-            dilovod_orders: list[dict] ) -> list[list[dict]]:
+            dilovod_orders: list[dict]) -> list[list[dict]]:
         ttn_numbers: list[str] = []
         ttn_dilovod_id_mapper: dict = {}
         for order in dilovod_orders:

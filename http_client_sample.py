@@ -18,7 +18,8 @@ from app.middlewares.ukrpost_client.urkpost_client import UkrpostClient
 # res = asyncio.run(upc.check_bunch_ttn_statuses(
 #     dilovod_orders=[expml],
 #     ttn_mapper=exmpl1))
-from app.tasks.job_mail_tracking import mail_tracking
+from app.tasks.job_on_road_tracking import mail_tracking_on_road
+from app.tasks.job_on_branch_tracking import mail_tracking_on_branch
 from app.tasks.scheduler import Scheduler
 
 
@@ -28,7 +29,8 @@ from app.tasks.scheduler import Scheduler
 async def main():
     sc = Scheduler()
     sc.start()
-    sc.add_job(mail_tracking, hours=0, minutes=0, seconds=10)  # Запуск кожні 10 секунд
+    sc.add_job(mail_tracking_on_road, hours=0, minutes=0, seconds=10)  # Запуск кожні 10 секунд
+    sc.add_job(mail_tracking_on_branch, hours=0, minutes=0, seconds=10)
 
     print("✅ Скедюлер запущено, очікуємо виконання задач...")
     await asyncio.Event().wait()  # Блокування, щоб програма не завершувалась

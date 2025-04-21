@@ -1,24 +1,30 @@
 from asyncio import Lock
-from typing import Literal, Optional
+from typing import Literal
 from requests import Response
 
-from app.middlewares.dilovod_client.dilovod_query_builder import DilovodQueryBuilder
-from app.middlewares.dilovod_client.dilovod_statistics_middleware import DilovodStatisticsMiddleware
+from app.middlewares.dilovod_client.dilovod_query_builder import (
+    DilovodQueryBuilder as DQBuilder)
+from app.middlewares.dilovod_client.dilovod_statistics_middleware import (
+    DilovodStatisticsMiddleware as DSMiddleware)
 from app.middlewares.http_client.http_client import HTTPClient
 from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.config.config_parser import ConfigParser
 
 
 class DilovodClient:
-    def __init__(self, dilovod_statistics: DilovodStatisticsMiddleware):
-        self.__dilovod_statistics: DilovodStatisticsMiddleware = dilovod_statistics
+    def __init__(self, dilovod_statistics: DSMiddleware):
+        self.__dilovod_statistics = dilovod_statistics
         self.__http_client: HTTPClient = HTTPClient()
-        self.__dilovod_query_builder: DilovodQueryBuilder = DilovodQueryBuilder()
+        self.__dilovod_query_builder = DQBuilder()
         self.__logger = LoguruLogger().logger
         self.__config_parser: ConfigParser = ConfigParser()
         self.__lock: Lock = Lock()
 
-    async def get_order_id_by_crm_id(self, crm_id: str, order_id: str, document: str):
+    async def get_order_id_by_crm_id(
+            self,
+            crm_id: str,
+            order_id: str,
+            document: str):
         fields: dict = {
             "id": "id",
             "remark": "remark"
@@ -35,12 +41,14 @@ class DilovodClient:
                 "value": order_id
             }
         ]
-        request_body: dict = await self.__dilovod_query_builder.configure_payload(
-            action="request",
-            document=document,
-            fields=fields,
-            filters_list=filters_list
-        )
+        request_body: dict = await (
+            self.__dilovod_query_builder.configure_payload(
+                action="request",
+                document=document,
+                fields=fields,
+                filters_list=filters_list
+                )
+            )
         async with self.__lock:
             response = await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
@@ -60,17 +68,20 @@ class DilovodClient:
                 status='unsuccess',
                 description='error_not_found'
             )
-            self.__logger.error(f'Unable to get Dilovod response for "order_id": {crm_id}')
+            self.__logger.error(f'''Unable to get Dilovod
+                                response for "order_id": {crm_id}''')
             return None
 
     async def get_dilovod_object_by_id(self, dilovod_id: str) -> dict:
         params: dict = {
             'id': dilovod_id
         }
-        request_body: dict = await self.__dilovod_query_builder.configure_payload(
-            action='getObject',
-            params=params
-        )
+        request_body: dict = await (
+            self.__dilovod_query_builder.configure_payload(
+                action='getObject',
+                params=params
+                )
+            )
         async with self.__lock:
             response = await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
@@ -122,11 +133,13 @@ class DilovodClient:
             "operator": "=",
             "value": status_mapper[status]
             }
-        request_body: dict = await self.__dilovod_query_builder.configure_payload(
-            fields=fields,
-            document='documents.saleOrder',
-            filters_list=[filters],
-            action='request')
+        request_body: dict = await (
+                self.__dilovod_query_builder.configure_payload(
+                    fields=fields,
+                    document='documents.saleOrder',
+                    filters_list=[filters],
+                    action='request')
+                )
         async with self.__lock:
             response: Response = await self.__http_client.post(
                     url=self.__config_parser.dilovod_api_url,
@@ -143,15 +156,18 @@ class DilovodClient:
             params: dict = {
                 'id': order_id
             }
-            get_object_payload: dict = await self.__dilovod_query_builder.configure_payload(
-                action='getObject',
-                params=params)
+            get_object_payload: dict = await (
+                self.__dilovod_query_builder.configure_payload(
+                    action='getObject',
+                    params=params)
+                )
             order_object: dict = await self.request_handler(
                 request_payload=get_object_payload)
             if order_object:
                 order_objects.append(order_object)
             else:
-                self.__logger.error(f'Unable to get order from dilovod by "id": {order_id}')
+                self.__logger.error(f'''Unable to get order
+                                    from dilovod by "id": {order_id}''')
         return order_objects
 
     async def request_handler(self, request_payload: dict) -> str | bool:
@@ -168,7 +184,7 @@ class DilovodClient:
                                 Response: {response}''')
             return False
         else:
-            self.__logger.info(f'''Successfull request''')
+            self.__logger.info('Successfull request')
             return response
 
     async def response_handler(self, response: dict):
@@ -191,17 +207,19 @@ class DilovodClient:
             save_type = 1
         if save_type == 'unregistred':
             save_type = 0
-        dilovod_move_body = await self.__dilovod_query_builder.get_data_to_move(
-            dilovod_response=dilovod_response,
-            saveType=save_type,
-            move_type=move_type
-        )
+        dilovod_move_body = await (
+            self.__dilovod_query_builder.get_data_to_move(
+                dilovod_response=dilovod_response,
+                saveType=save_type,
+                move_type=move_type
+            ))
         if not dilovod_move_body:
             self.__logger.error(f'''Unable to configure "move" request body
                                 for dilovod order. Dilovod order:
                                 {dilovod_response}''')
             return False
-        response: str | bool = await self.request_handler(request_payload=dilovod_move_body)
+        response: str | bool = await self.request_handler(
+            request_payload=dilovod_move_body)
         if response:
             return response['id']
         else:
@@ -222,10 +240,11 @@ class DilovodClient:
         if request_body:
             dilovod_change_status_body = request_body
         else:
-            dilovod_change_status_body: dict = await self.__dilovod_query_builder.change_order_status(
-                dilovod_id=dilovod_order_id,
-                status=status
-            )
+            dilovod_change_status_body: dict = await (
+                self.__dilovod_query_builder.change_order_status(
+                    dilovod_id=dilovod_order_id,
+                    status=status)
+                )
         async with self.__lock:
             await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
@@ -235,9 +254,11 @@ class DilovodClient:
 
     async def make_shipment(self, dilovod_response: dict) -> None:
         dilovod_order_id: str = dilovod_response['header']['id']['id']
-        dilovod_shipment_body: dict = await self.__dilovod_query_builder.get_data_to_shipment(
-            dilovod_object=dilovod_response,
-            saveType=1)
+        dilovod_shipment_body: dict = await (
+            self.__dilovod_query_builder.get_data_to_shipment(
+                dilovod_object=dilovod_response,
+                saveType=1)
+            )
         async with self.__lock:
             response = await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
@@ -251,10 +272,10 @@ class DilovodClient:
                             dilovod id: {dilovod_order_id}\n
                             Will stored unregistred\n
                             Response: {response_data}''')
-            dilovod_shipment_body = await self.__dilovod_query_builder.get_data_to_shipment(
-                dilovod_object=dilovod_response,
-                saveType=0
-            )
+            dilovod_shipment_body = await (
+                self.__dilovod_query_builder.get_data_to_shipment(
+                    dilovod_object=dilovod_response,
+                    saveType=0))
             async with self.__lock:
                 response = await self.__http_client.post(
                     url=self.__config_parser.dilovod_api_url,
@@ -292,11 +313,14 @@ class DilovodClient:
         shipment_id: str = response_data.get('id')
         return shipment_id
 
-    async def make_cashIn(self, dilovod_response: dict, shipment_id: str) -> None:
-        dilovod_cashIn_body: dict = await self.__dilovod_query_builder.get_data_to_cashIn(
-            dilovod_object=dilovod_response,
-            shipment_id=shipment_id
-        )
+    async def make_cashIn(
+            self,
+            dilovod_response: dict,
+            shipment_id: str) -> None:
+        dilovod_cashIn_body: dict = await (
+            self.__dilovod_query_builder.get_data_to_cashIn(
+                dilovod_object=dilovod_response,
+                shipment_id=shipment_id))
         async with self.__lock:
             response = await self.__http_client.post(
                 url=self.__config_parser.dilovod_api_url,
@@ -307,10 +331,11 @@ class DilovodClient:
         error: str | None = response_data.get('error')
         if error:
             self.__logger.error(f'''Unable to registher "cashIn for" for
-                                "dilovod_id": {dilovod_response['header']['id']['id']}\n
+                                "dilovod_id":
+                                {dilovod_response['header']['id']['id']}\n
                                 Response: {response_data}''')
-            dilovod_cashIn_body: dict = await self.__dilovod_query_builder.get_data_to_cashIn(
-                dilovod_object=dilovod_response,
-                shipment_id=shipment_id,
-                saveType=0
-            )
+            dilovod_cashIn_body: dict = await (
+                self.__dilovod_query_builder.get_data_to_cashIn(
+                    dilovod_object=dilovod_response,
+                    shipment_id=shipment_id,
+                    saveType=0))

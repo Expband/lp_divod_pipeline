@@ -63,7 +63,8 @@ class DilovodQueryBuilder:
                 'vatAmount': good_object_raw['vatAmount'],
                 'printName': good_object_raw['printName']
             }
-            request_body['params']['tableParts']['tpGoods'][f'{good}'] = good_object
+            table_parts: dict = request_body['params']['tableParts']
+            table_parts['tpGoods'][f'{good}'] = good_object
         header_raw: dict = dilovod_response['header']
         header: dict = {
             'id': 'documents.goodMoving',
@@ -79,7 +80,8 @@ class DilovodQueryBuilder:
         storageTo_id: str = ''
         if move_type == 'from_sale':
             header['storage'] = '1100700000000001'
-            delivery_method: str = header_raw.get('deliveryMethod_forDel', {}).get('pr')
+            delivery_method: str = (
+                header_raw.get('deliveryMethod_forDel', {}).get('pr'))
             if delivery_method == 'Укр пошта':
                 storageTo_id = '1100100000001003'
             if delivery_method == 'Нова пошта':
@@ -87,9 +89,9 @@ class DilovodQueryBuilder:
         if move_type == 'from_movement':
             pervious_storage: str = header_raw['storageTo']['id']
             header['storage'] = pervious_storage
-            if pervious_storage == '1100100000001002':  #if previous_storage is NovaPost
+            if pervious_storage == '1100100000001002':
                 storageTo_id = '1100100000058677'
-            if pervious_storage == '1100100000001003':  #if previous_storage is UkrPost
+            if pervious_storage == '1100100000001003':
                 storageTo_id = '1100100000058678'
         header['storageTo'] = storageTo_id
         request_body['params'].setdefault('header', {})
@@ -160,7 +162,8 @@ class DilovodQueryBuilder:
                 'vatAmount': good_object_raw['vatAmount'],
                 'printName': good_object_raw['printName']
             }
-            request_body['params']['tableParts']['tpGoods'][f'{good}'] = good_object
+            table_parts: dict = request_body['params']['tableParts']
+            table_parts['tpGoods'][f'{good}'] = good_object
         header_raw: dict = dilovod_object['header']
         header: dict = {
             'id': 'documents.sale',

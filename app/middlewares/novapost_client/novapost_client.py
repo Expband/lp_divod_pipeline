@@ -1,8 +1,13 @@
+from typing import Literal
+
+
 from app.config.config_parser import ConfigParser
+from app.middlewares.shipment_processor import ShipmentProcessor
 from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.middlewares.http_client.http_client import HTTPClient
 from app.middlewares.http_client.request_error import RequestError
-from app.middlewares.novapost_client.novapost_query_builder import NovaPostQueryBuilder
+from app.middlewares.novapost_client.novapost_query_builder import (
+    NovaPostQueryBuilder as NPQBuilder)
 
 
 class NovaPostClient:
@@ -11,7 +16,8 @@ class NovaPostClient:
         self.__loguru_logger: LoguruLogger = LoguruLogger()
         self.__logger = self.__loguru_logger.logger
         self.__http_client: HTTPClient = HTTPClient()
-        self.__novapost_query_builder: NovaPostQueryBuilder = NovaPostQueryBuilder()
+        self.__shipment_processor = ShipmentProcessor()
+        self.__np_qb = NPQBuilder()
 
     async def check_bunch_ttn_statuses(
             self,
@@ -48,7 +54,8 @@ class NovaPostClient:
                 shipment_status_code: str = shipment.get('StatusCode')
                 if shipment_status_code:
                     new_ttn: str = shipment.get('LastCreatedOnTheBasisNumber')
-                    ttn_mapper[shipment_number]['status_id'] = shipment_status_code
+                    ttn_mapper[shipment_number]['status_id'] = (
+                        shipment_status_code)
                     ttn_mapper[shipment_number]['new_ttn'] = new_ttn
                 else:
                     self.__logger.error(f'''Unable to get StatusCode
@@ -76,3 +83,42 @@ class NovaPostClient:
             ttn_mapper=ttn_mapper,
             np_data=response_data)
         return mapper
+
+    async def remap_if_new_ttn(
+            self,
+            np_responses: list[dict],
+            ttn_statuses: dict,
+            key: Literal['ttn_number', 'new_ttn_number']) -> dict:
+        for np_resp in np_responses:
+            success: str = np_resp.get('success')
+            if not success:
+                self.__logger.error(f'''Unsuccess NovaPost response:
+                            {np_resp}''')
+                continue
+            np_resp_data: list[dict] = np_resp.get('data')
+            if not np_resp_data:
+                self.__logger.error(f'''Unable to get data from NovaPost
+                                    response:
+                            {np_resp}''')
+                continue
+            for shipment in np_resp_data:
+                old_ttn = shipment.get('Number')
+                new_ttn = shipment.get('LastCreatedOnTheBasisNumber')
+                dilovod_id: str = await (
+                    self.__shipment_processor.find_key_by_ttn_number(
+                        ttn=old_ttn,
+                        data=ttn_statuses,
+                        key=key
+                        )
+                    )
+                if not dilovod_id:
+                    self.__logger.error(f'''Unable to get "dilovod_id" from
+                                    "ttn_mapper" for shipment:
+                                    {shipment}''')
+                    continue
+                if new_ttn:
+                    ttn_statuses[dilovod_id]['new_ttn_number'] = new_ttn
+                else:
+                    ttn_statuses[dilovod_id]['shipment_status'] = (
+                        shipment['StatusCode'])
+        return ttn_statuses

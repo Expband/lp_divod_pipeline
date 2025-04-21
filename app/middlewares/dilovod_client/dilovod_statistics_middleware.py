@@ -25,18 +25,16 @@ class DilovodStatisticsMiddleware:
         self.__ukr_tz = pytz.timezone('Europe/Kiev')
 
     def update_statistics(
-        self,
-        status: Literal[
-            'success',
-            'unsuccess'],
-        description: Literal[
-            'registred_docs',
-            'unregistred_docs',
-            'error_not_found',
-            'error_multyThread_access',
-            'error_other'
-        ]
-        ):
+            self,
+            status: Literal[
+                'success',
+                'unsuccess'],
+            description: Literal[
+                'registred_docs',
+                'unregistred_docs',
+                'error_not_found',
+                'error_multyThread_access',
+                'error_other']):
         self.__execution_statistics['all_operations_count'] += 1
         self.__execution_statistics[status]['all'] += 1
         self.__execution_statistics[status][description] += 1
