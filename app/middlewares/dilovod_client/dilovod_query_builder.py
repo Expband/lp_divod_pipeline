@@ -1,6 +1,6 @@
 import datetime
 import pytz
-from typing import Literal
+from typing import Literal, Any
 
 from app.config.config_parser import ConfigParser
 
@@ -257,3 +257,133 @@ class DilovodQueryBuilder:
         request_body['params'].setdefault('header', {})
         request_body['params']['header'] = header
         return request_body
+
+    async def get_data_to_mass_move(
+            self,
+            dilovod_orders: list[dict],
+            from_storage: Literal[
+                'Novapost',
+                'Ukrpost'
+                ],
+            save_type: int = 0) -> dict:
+        request_body: dict = await self.configure_payload(action='saveObject')
+        date: str = datetime.datetime.now(
+                tz=self.__kyiv_tz).strftime("%Y-%m-%d %H:%M:%S")
+        request_body['params'] = {}
+        request_body['params']['saveType'] = save_type
+        request_body['params'].setdefault('tableParts', {})
+        request_body['params']['tableParts'].setdefault('tpGoods', {})
+        header: dict = {
+            'id': 'documents.goodMoving',
+            'date': date,
+            'firm': dilovod_orders[0]['header']['firm']['id'],
+            'author': '1000200000001019',
+            'business': '1115000000000001',
+            'docMode': '1004000000000409',
+            'priceType': '1101300000001001',
+            "storage": "1100100000001002"
+        }
+        if from_storage == 'Novapost':
+            header['storageTo'] = '1100700000000001'
+        if from_storage == 'Ukrpost':
+            header['storageTo'] = '1100700000000002'
+        await self.handle_orders(
+            dilovod_orders=dilovod_orders,
+            raw_dilovod_request_body=request_body
+        )
+        request_body['params']['header'] = header
+        print(request_body)
+        # for order in dilovod_orders:
+        #     tp_goods: dict = order.get('tableParts').get('tpGoods')
+        #     for good_data in tp_goods.values():
+        #         body_goods: dict = (
+        #             request_body['params']['tableParts']['tpGoods'])
+        #         good_id: str = good_data.get('good')
+        #         is_exist: bool = any(
+        #             bg.get("good") == good_id
+        #             for bg in body_goods.values())
+        #         if is_exist:
+        #             for good in tp_goods:
+        #                 if good['good'] == good_id:
+        #                     pass
+        #                 else:
+        #                     pass
+
+    async def extract_tp_goods(
+            self,
+            object: dict[str, Any]) -> dict:
+        return object.get('tableParts', {}).get('tpGoods', {})
+
+    async def extract_body_goods(
+            self,
+            request_body: dict[str, Any]) -> dict:
+        return request_body.get(
+            'params', {}).get('tableParts', {}).get('tpGoods', {})
+
+    async def good_exists_in_body(
+            self,
+            body_goods: dict[str, Any],
+            good_id: str) -> bool:
+        return any(g.get("good") == good_id for g in body_goods.values())
+
+    async def process_goods_if_exist(
+            self,
+            tp_goods: dict[str, Any],
+            good_id: str,
+            increase_qty: float) -> None:
+        tp_goods_copy: dict = tp_goods.copy()
+        for _good_id, good in tp_goods_copy.items():
+            if not isinstance(good, dict):
+                print(f'''Good: {good}
+                        Good is not dict''')
+                continue
+            if good['good'] == good_id:
+                raw_base_qty: str = tp_goods[f'{_good_id}']['baseQty']
+                raw_qty: str = tp_goods[f'{_good_id}']['qty']
+                if not raw_base_qty:
+                    raw_base_qty: float = 0.0
+                if not raw_qty:
+                    raw_qty: float = 0.0
+                qty: float = float(raw_qty)
+                tp_goods[f'{_good_id}']['qty'] = str(
+                    qty + increase_qty)
+        return tp_goods
+
+    async def transform_good_data(self, raw_good: dict) -> dict:
+        fields_to_keep = ["rowNum", "good", "price", "qty", "unit"]
+        return {key: raw_good[key]
+                for key in fields_to_keep if key in raw_good}
+
+    async def handle_orders(
+            self,
+            dilovod_orders: list[dict[str, Any]],
+            raw_dilovod_request_body: dict[str, Any]) -> None:
+        remark: str = ''
+        for dilovod_order in dilovod_orders:
+            raw_remark: str = dilovod_order.get('remark')
+            print('dilovod order: ', dilovod_order)
+            if raw_remark:
+                raw_remark: str = raw_remark.split(',')[-1].split(' ')[-1]
+            else:
+                raw_order_number: str = dilovod_order['header']['id']['pr']
+                raw_remark: str = raw_order_number.split(' ')[-1]
+            remark: str = remark + '|' + raw_remark
+            tableParts: dict = dilovod_order.get(
+                'tableParts', {})
+            order_tp_goods: dict = tableParts.get('tpGoods', {})
+            request_body_goods: dict = raw_dilovod_request_body.get(
+                'params', {}).get('tableParts', {}).get('tpGoods', {})
+            for good_id, good_data in order_tp_goods.items():
+                good_id: str = good_data.get('good')
+                is_exist: bool = await self.good_exists_in_body(
+                        body_goods=request_body_goods,
+                        good_id=good_id)
+                if is_exist:
+                    qty: str = good_data.get('qty')
+                    await self.process_goods_if_exist(
+                        tp_goods=request_body_goods,
+                        good_id=good_id,
+                        increase_qty=float(qty))
+                else:
+                    request_body_goods[good_id] = good_data
+        raw_dilovod_request_body['remark'] = remark

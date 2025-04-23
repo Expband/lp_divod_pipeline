@@ -63,8 +63,9 @@ class ShipmentProcessor:
             ttn_mapper: dict,
             target_status: str) -> list[str]:
         dilovod_id_in_status: list['str'] = []
-        for dilovod_id, shipment_data in ttn_mapper:
+        for dilovod_id, shipment_data in ttn_mapper.items():
             shipment_status: str = shipment_data.get(
                 'shipment_status')
             if shipment_status == target_status:
                 dilovod_id_in_status.append(dilovod_id)
+        return dilovod_id_in_status

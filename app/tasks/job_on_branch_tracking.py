@@ -6,6 +6,9 @@ from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.middlewares.dilovod_client.dilovod_statistics_middleware import (
     DilovodStatisticsMiddleware)
 from app.middlewares.dilovod_client.dilovod_client import DilovodClient
+from app.middlewares.dilovod_client.dilovod_query_builder import(
+    DilovodQueryBuilder as DQBuilder
+)
 from app.middlewares.shipment_processor import ShipmentProcessor
 from app.middlewares.novapost_client.novapost_client import NovaPostClient
 from app.middlewares.novapost_client.novapost_query_builder import (
@@ -17,6 +20,7 @@ logger = LoguruLogger().logger
 dilovod_statistics: DilovodStatisticsMiddleware = DilovodStatisticsMiddleware()
 dilovod_client: DilovodClient = DilovodClient(
     dilovod_statistics=dilovod_statistics)
+dq_builder = DQBuilder()
 shipment_processor = ShipmentProcessor()
 novapost_client: NovaPostClient = NovaPostClient()
 novapost_qb: NovaPostQueryBuilder = NovaPostQueryBuilder()
@@ -47,7 +51,7 @@ async def process_on_the_branch(sorted_orders: dict[str, list[dict]]):
 async def handle_novapost_tracking(orders: list[dict]):
     novapost_resps, novapost_ttn_statuses = await retrieve_novapost_data(
                 dilovod_orders=orders)
-    target_count: int = 20
+    target_count: int = 3
     await novapost_client.remap_if_new_ttn(
         np_responses=novapost_resps,
         ttn_statuses=novapost_ttn_statuses,
@@ -58,9 +62,17 @@ async def handle_novapost_tracking(orders: list[dict]):
             ttn_mapper=novapost_ttn_statuses,
             target_status='9'))
     current_count: int = len(dilovod_id_in_status)
-    # if current_count > target_count:
-        # for order in orders
-
+    if current_count >= target_count:
+        dilovod_orders_objects: list[dict] = await (
+            dilovod_client.select_orders_by_id_list(
+                dilovod_orders=orders,
+                dilovod_ids=dilovod_id_in_status
+            )
+        )
+        await dq_builder.get_data_to_mass_move(
+            dilovod_orders=dilovod_orders_objects,
+            from_storage='Novapost'
+        )
 
 
 async def retrieve_novapost_data(

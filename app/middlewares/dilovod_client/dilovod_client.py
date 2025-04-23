@@ -339,3 +339,14 @@ class DilovodClient:
                     dilovod_object=dilovod_response,
                     shipment_id=shipment_id,
                     saveType=0))
+
+    async def select_orders_by_id_list(
+            self,
+            dilovod_orders: list[dict],
+            dilovod_ids: list[str]) -> list[dict]:
+        selected_orders: list[dict] = []
+        for order in dilovod_orders:
+            order_id: str = order['header']['id']['id']
+            if order_id in dilovod_ids:
+                selected_orders.append(order)
+        return selected_orders
