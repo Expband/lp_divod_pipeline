@@ -6,16 +6,20 @@ from app.middlewares.dilovod_client.dilovod_query_builder import (
 from app.middlewares.dilovod_client.dilovod_statistics_middleware import (
     DilovodStatisticsMiddleware as DStatistics
 )
+from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.middlewares.dilovod_client.dilovod_client import DilovodClient
+from app.middlewares.dilovod_client.dilovod_operator import DilovodOperator
 
 
 class ShipmentProcessor:
 
     def __init__(self):
+        self.__logger = LoguruLogger().logger
         self.__dilovod_qb = DQBuilder()
         self.__dilovod_stat = DStatistics()
         self.__dilovod_client = DilovodClient(
             dilovod_statistics=self.__dilovod_stat)
+        self.__dilvood_operator = DilovodOperator()
 
     async def find_key_by_ttn_number(
             self,
@@ -69,3 +73,39 @@ class ShipmentProcessor:
             if shipment_status == target_status:
                 dilovod_id_in_status.append(dilovod_id)
         return dilovod_id_in_status
+
+    async def process_refunded_shipments(
+            self,
+            orders: list[dict],
+            dilovod_id_in_status: list[str]):
+        dilovod_orders_objects: list[dict] = await (
+                self.__dilovod_client.select_orders_by_id_list(
+                    dilovod_orders=orders,
+                    dilovod_ids=dilovod_id_in_status
+                )
+            )
+        request_body: dict = await self.__dilovod_qb.get_data_to_mass_move(
+            dilovod_orders=dilovod_orders_objects,
+            from_storage='Novapost'
+        )
+        if not request_body:
+            self.__logger.error('Unable to get request body for mass move')
+            return None
+        tpGoods: dict = request_body['params']['tableParts']['tpGoods']
+        formated_tpGoods: dict = await self.__dilovod_qb.transform_goods_data(
+            raw_goods=tpGoods)
+        request_body['params']['tableParts']['tpGoods'] = formated_tpGoods
+        processed_orders_id: list[str] = await (
+            self.__dilvood_operator.get_id_from_list_order(
+                orders=orders))
+        response: dict = await self.__dilovod_client.make_request(
+            request_body=request_body
+        )
+        error: str = response.get('error')
+        if error:
+            self.__logger.error(f'''Error occured while mass movement:
+                                {response}''')
+        await self.__dilovod_client.list_orders_change_status(
+            orders_ids=processed_orders_id,
+            status='refund_taken'
+        )

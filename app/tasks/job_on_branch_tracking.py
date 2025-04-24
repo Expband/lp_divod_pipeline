@@ -6,7 +6,7 @@ from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.middlewares.dilovod_client.dilovod_statistics_middleware import (
     DilovodStatisticsMiddleware)
 from app.middlewares.dilovod_client.dilovod_client import DilovodClient
-from app.middlewares.dilovod_client.dilovod_query_builder import(
+from app.middlewares.dilovod_client.dilovod_query_builder import (
     DilovodQueryBuilder as DQBuilder
 )
 from app.middlewares.shipment_processor import ShipmentProcessor
@@ -63,15 +63,9 @@ async def handle_novapost_tracking(orders: list[dict]):
             target_status='9'))
     current_count: int = len(dilovod_id_in_status)
     if current_count >= target_count:
-        dilovod_orders_objects: list[dict] = await (
-            dilovod_client.select_orders_by_id_list(
-                dilovod_orders=orders,
-                dilovod_ids=dilovod_id_in_status
-            )
-        )
-        await dq_builder.get_data_to_mass_move(
-            dilovod_orders=dilovod_orders_objects,
-            from_storage='Novapost'
+        await shipment_processor.process_refunded_shipments(
+            orders=orders,
+            dilovod_id_in_status=dilovod_id_in_status
         )
 
 

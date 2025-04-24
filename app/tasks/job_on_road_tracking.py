@@ -59,6 +59,7 @@ async def process_on_the_road(sorted_orders: dict[str, list[dict]]):
 async def handle_novapost_tracking(orders: list[dict]):
     novapost_resps, novapost_ttn_statuses = await retrieve_novapost_data(
                 dilovod_orders=orders)
+    print('handle_novapost_tracking')
     remap_ttn_statuses = await novapost_client.remap_if_new_ttn(
             np_responses=novapost_resps,
             ttn_statuses=novapost_ttn_statuses,

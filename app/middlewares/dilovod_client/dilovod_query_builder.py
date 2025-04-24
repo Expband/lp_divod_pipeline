@@ -293,6 +293,7 @@ class DilovodQueryBuilder:
         )
         request_body['params']['header'] = header
         print(request_body)
+        return request_body
         # for order in dilovod_orders:
         #     tp_goods: dict = order.get('tableParts').get('tpGoods')
         #     for good_data in tp_goods.values():
@@ -349,10 +350,16 @@ class DilovodQueryBuilder:
                     qty + increase_qty)
         return tp_goods
 
-    async def transform_good_data(self, raw_good: dict) -> dict:
+    async def transform_goods_data(self, raw_goods: dict) -> dict:
         fields_to_keep = ["rowNum", "good", "price", "qty", "unit"]
-        return {key: raw_good[key]
-                for key in fields_to_keep if key in raw_good}
+        transformed_data = {}
+        for good_id, good_data in raw_goods.items():
+            filtered_data = {}
+            for field in fields_to_keep:
+                if field in good_data:
+                    filtered_data[field] = good_data[field]
+            transformed_data[good_id] = filtered_data
+        return transformed_data
 
     async def handle_orders(
             self,
@@ -361,7 +368,6 @@ class DilovodQueryBuilder:
         remark: str = ''
         for dilovod_order in dilovod_orders:
             raw_remark: str = dilovod_order.get('remark')
-            print('dilovod order: ', dilovod_order)
             if raw_remark:
                 raw_remark: str = raw_remark.split(',')[-1].split(' ')[-1]
             else:
@@ -386,4 +392,4 @@ class DilovodQueryBuilder:
                         increase_qty=float(qty))
                 else:
                     request_body_goods[good_id] = good_data
-        raw_dilovod_request_body['remark'] = remark
+        raw_dilovod_request_body['params']['remark'] = remark

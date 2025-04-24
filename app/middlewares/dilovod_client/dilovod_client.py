@@ -72,6 +72,16 @@ class DilovodClient:
                                 response for "order_id": {crm_id}''')
             return None
 
+    async def make_request(self, request_body: dict) -> dict:
+        async with self.__lock:
+            response = await self.__http_client.post(
+                url=self.__config_parser.dilovod_api_url,
+                payload=request_body,
+                parse_mode='json'
+            )
+        response_data = response.json()
+        return response_data
+
     async def get_dilovod_object_by_id(self, dilovod_id: str) -> dict:
         params: dict = {
             'id': dilovod_id
@@ -152,6 +162,7 @@ class DilovodClient:
             return None
         order_objects: list[dict] = []
         for order in response:
+            print('order ', order)
             order_id: str = order['id']
             params: dict = {
                 'id': order_id
@@ -250,6 +261,24 @@ class DilovodClient:
                 url=self.__config_parser.dilovod_api_url,
                 payload=dilovod_change_status_body,
                 parse_mode='json'
+            )
+
+    async def list_orders_change_status(
+        self,
+        orders_ids: list[str],
+        status: Literal[
+                                'completed',
+                                'sent_to_post_office',
+                                'refund_on_the_road',
+                                'returned_to_branch',
+                                'utilization',
+                                'refund_taken',
+                                'error',
+                            ]):
+        for order_id in orders_ids:
+            await self.change_status(
+                dilovod_order_id=order_id,
+                status=status
             )
 
     async def make_shipment(self, dilovod_response: dict) -> None:
