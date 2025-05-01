@@ -77,7 +77,11 @@ class ShipmentProcessor:
     async def process_refunded_shipments(
             self,
             orders: list[dict],
-            dilovod_id_in_status: list[str]):
+            dilovod_id_in_status: list[str],
+            from_storage: Literal[
+                'Novapost',
+                'Ukrpost'
+                ]):
         dilovod_orders_objects: list[dict] = await (
                 self.__dilovod_client.select_orders_by_id_list(
                     dilovod_orders=orders,
@@ -86,7 +90,7 @@ class ShipmentProcessor:
             )
         request_body: dict = await self.__dilovod_qb.get_data_to_mass_move(
             dilovod_orders=dilovod_orders_objects,
-            from_storage='Novapost'
+            from_storage=from_storage
         )
         if not request_body:
             self.__logger.error('Unable to get request body for mass move')

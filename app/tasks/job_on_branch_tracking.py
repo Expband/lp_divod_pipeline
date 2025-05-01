@@ -13,6 +13,7 @@ from app.middlewares.shipment_processor import ShipmentProcessor
 from app.middlewares.novapost_client.novapost_client import NovaPostClient
 from app.middlewares.novapost_client.novapost_query_builder import (
     NovaPostQueryBuilder)
+from app.middlewares.ukrpost_client.urkpost_client import UkrpostClient
 
 
 kyiv_tz = pytz.timezone("Europe/Kiev")
@@ -24,6 +25,7 @@ dq_builder = DQBuilder()
 shipment_processor = ShipmentProcessor()
 novapost_client: NovaPostClient = NovaPostClient()
 novapost_qb: NovaPostQueryBuilder = NovaPostQueryBuilder()
+ukrpost_client: UkrpostClient = UkrpostClient()
 
 
 async def mail_tracking_on_branch():
@@ -43,9 +45,45 @@ async def process_on_the_branch(sorted_orders: dict[str, list[dict]]):
         if delivery_method == '1110400000001001':
             await handle_novapost_tracking(orders=orders)
         if delivery_method == '1110400000001002':
-            ...
-            # await handle_ukrpost_tracking(
-            # orders=orders)
+            await handle_ukrpost_tracking(orders=orders)
+
+
+async def handle_ukrpost_tracking(orders: list[dict]):
+    ukrpost_data, ttn_mapper = await retrieve_ukr_post_data(
+        dilovod_orders=orders,
+        ttn_statuses={}
+    )
+    await ukrpost_client.ukrpost_status_mapper(
+        ttn_mapper=ttn_mapper,
+        ukrpost_data=ukrpost_data)
+    print('ukrpost_data ', ukrpost_data)
+    print('ttn_mapper', ttn_mapper)
+    dilovod_id_in_status: list[str] = await (
+        shipment_processor.get_in_status(
+            ttn_mapper=ttn_mapper,
+            target_status='41000'))
+    current_count: int = len(dilovod_id_in_status)
+    target_count: int = 3
+    if current_count >= target_count:
+        await shipment_processor.process_refunded_shipments(
+            orders=orders,
+            dilovod_id_in_status=dilovod_id_in_status,
+            from_storage='Ukrpost'
+        )
+
+
+async def retrieve_ukr_post_data(
+        dilovod_orders: list[dict],
+        ttn_statuses: dict):
+    try:
+        request_chunked, ttn_mapper = await (
+            ukrpost_client.check_bunch_ttn_statuses(
+                ttn_mapper=ttn_statuses,
+                dilovod_orders=dilovod_orders))
+        return request_chunked, ttn_mapper
+    except ValueError:
+        logger.warning('0 TTN`s was found in "refund_on_the_road"')
+        return None
 
 
 async def handle_novapost_tracking(orders: list[dict]):
@@ -65,7 +103,8 @@ async def handle_novapost_tracking(orders: list[dict]):
     if current_count >= target_count:
         await shipment_processor.process_refunded_shipments(
             orders=orders,
-            dilovod_id_in_status=dilovod_id_in_status
+            dilovod_id_in_status=dilovod_id_in_status,
+            from_storage='Novapost'
         )
 
 
