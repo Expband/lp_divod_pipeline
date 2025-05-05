@@ -29,7 +29,7 @@ from app.tasks.scheduler import Scheduler
 async def main():
     sc = Scheduler()
     sc.start()
-    # sc.add_job(mail_tracking_on_road, hours=0, minutes=0, seconds=10)  # Запуск кожні 10 секунд
+    sc.add_job(mail_tracking_on_road, hours=0, minutes=0, seconds=10)  # Запуск кожні 10 секунд
     sc.add_job(mail_tracking_on_branch, hours=0, minutes=0, seconds=10)
 
     print("✅ Скедюлер запущено, очікуємо виконання задач...")
