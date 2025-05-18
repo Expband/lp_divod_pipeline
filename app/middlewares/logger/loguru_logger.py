@@ -1,21 +1,23 @@
 from loguru import logger
+import os
 
 
 class LoguruLogger:
     def __init__(self):
+        pid: int = os.getpid()
         logger.add(
-            "logs/info.log",
-            rotation="10 MB",
+            f"logs/info{pid}.log",
             retention="30 days",
             level="INFO",
-            colorize=True
+            colorize=True,
+            enqueue=True
             )
         logger.add(
-            "logs/error.log",
-            rotation="30 MB",
+            f"logs/error{pid}.log",
             retention="100 days",
             level="ERROR",
-            colorize=True
+            colorize=True,
+            enqueue=True
         )
 
     @property

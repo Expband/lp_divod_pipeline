@@ -161,8 +161,10 @@ class DilovodClient:
             self.__logger.info(f'0 orders in status: {status}')
             return None
         order_objects: list[dict] = []
+        if not isinstance(response, list):
+            self.__logger.info(f'Unexpected dilovod response: {response}')
+            return None
         for order in response:
-            print('order ', order)
             order_id: str = order['id']
             params: dict = {
                 'id': order_id

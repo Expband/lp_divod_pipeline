@@ -33,7 +33,6 @@ class UkrpostClient:
             ttn_mapper[order_id] = {
                 'ttn_number': ttn_number,
                 'shipment_status': ''}
-        print(ttn_mapper)
         request_url: str = self.__url + api_endpoint
         request_headers: dict = {
             'Authorization': 'Bearer ' + self.__api_key

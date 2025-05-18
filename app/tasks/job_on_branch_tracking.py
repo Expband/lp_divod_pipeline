@@ -56,8 +56,6 @@ async def handle_ukrpost_tracking(orders: list[dict]):
     await ukrpost_client.ukrpost_status_mapper(
         ttn_mapper=ttn_mapper,
         ukrpost_data=ukrpost_data)
-    print('ukrpost_data ', ukrpost_data)
-    print('ttn_mapper', ttn_mapper)
     dilovod_id_in_status: list[str] = await (
         shipment_processor.get_in_status(
             ttn_mapper=ttn_mapper,

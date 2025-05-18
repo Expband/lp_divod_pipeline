@@ -14,16 +14,19 @@ logger = LoguruLogger().logger
 # 1) clean mail_tracking_on_road and mail_tracking_on_branch
 # methods (code duplicates)
 # 2) add descriptions for methods
-# 3) change np and up trigger status
+# 3) change np and up trigger status codes
+# 4) add ttn to remark
+# 5) add queue for incoming requests
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     sc = Scheduler()
     sc.start()
     logger.info(f'Scheduler started')
-    sc.add_job(mail_tracking_on_road, hours=0, minutes=0, seconds=10)
+    sc.add_job(mail_tracking_on_road, hours=0, minutes=1, seconds=0)
     logger.info(f'Task "mail_tracking_on_road" added')
-    sc.add_job(mail_tracking_on_branch, hours=0, minutes=0, seconds=10)
+    sc.add_job(mail_tracking_on_branch, hours=0, minutes=1, seconds=0)
     logger.info(f'Task "mail_tracking_on_branch" added')
     yield
     sc.shutdown()

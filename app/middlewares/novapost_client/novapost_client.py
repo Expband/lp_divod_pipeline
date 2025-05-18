@@ -88,37 +88,36 @@ class NovaPostClient:
             self,
             np_responses: list[dict],
             ttn_statuses: dict,
-            key: Literal['ttn_number', 'new_ttn_number']) -> dict:
+            key: Literal['ttn_number', 'new_ttn_number']
+            ) -> dict:
+        print('ttn_statuses', ttn_statuses)
+
         for np_resp in np_responses:
-            success: str = np_resp.get('success')
-            if not success:
-                self.__logger.error(f'''Unsuccess NovaPost response:
-                            {np_resp}''')
+            if not np_resp.get('success'):
+                self.__logger.error(f"Unsuccess NovaPost response: {np_resp}")
                 continue
-            np_resp_data: list[dict] = np_resp.get('data')
-            if not np_resp_data:
-                self.__logger.error(f'''Unable to get data from NovaPost
-                                    response:
-                            {np_resp}''')
-                continue
-            for shipment in np_resp_data:
+
+            for shipment in np_resp.get('data', []):
                 old_ttn = shipment.get('Number')
                 new_ttn = shipment.get('LastCreatedOnTheBasisNumber')
-                dilovod_id: str = await (
-                    self.__shipment_processor.find_key_by_ttn_number(
-                        ttn=old_ttn,
-                        data=ttn_statuses,
-                        key=key
-                        )
-                    )
+                status = shipment.get('StatusCode')
+
+                dilovod_id = await self.__shipment_processor.find_key_by_ttn_number(
+                    ttn=old_ttn,
+                    data=ttn_statuses,
+                    key=key
+                )
+
                 if not dilovod_id:
-                    self.__logger.error(f'''Unable to get "dilovod_id" from
-                                    "ttn_mapper" for shipment:
-                                    {shipment}''')
+                    self.__logger.error(f'Unable to get "dilovod_id" from "ttn_mapper" for shipment: {shipment}')
                     continue
-                if new_ttn:
+
+                if key == 'ttn_number' and new_ttn:
                     ttn_statuses[dilovod_id]['new_ttn_number'] = new_ttn
-                else:
-                    ttn_statuses[dilovod_id]['shipment_status'] = (
-                        shipment['StatusCode'])
+
+                # У будь-якому випадку, якщо key == 'new_ttn_number', або якщо key == 'ttn_number' і new_ttn відсутній
+                if key == 'new_ttn_number' or (key == 'ttn_number' and not new_ttn):
+                    ttn_statuses[dilovod_id]['shipment_status'] = status
+
         return ttn_statuses
+
