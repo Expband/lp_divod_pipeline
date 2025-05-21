@@ -376,6 +376,10 @@ class DilovodClient:
             dilovod_orders: list[dict],
             dilovod_ids: list[str]) -> list[dict]:
         selected_orders: list[dict] = []
+        print('dilovod orders: ', dilovod_orders)
+        print('type dilovod orders: ', type(dilovod_orders))
+        print('dilovod ids: ', dilovod_ids)
+        print('type dilovod ids: ', type(dilovod_ids))
         for order in dilovod_orders:
             order_id: str = order['header']['id']['id']
             if order_id in dilovod_ids:

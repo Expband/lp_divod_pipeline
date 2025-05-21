@@ -90,7 +90,6 @@ class NovaPostClient:
             ttn_statuses: dict,
             key: Literal['ttn_number', 'new_ttn_number']
             ) -> dict:
-        print('ttn_statuses', ttn_statuses)
 
         for np_resp in np_responses:
             if not np_resp.get('success'):
@@ -112,11 +111,18 @@ class NovaPostClient:
                     self.__logger.error(f'Unable to get "dilovod_id" from "ttn_mapper" for shipment: {shipment}')
                     continue
 
-                if key == 'ttn_number' and new_ttn:
-                    ttn_statuses[dilovod_id]['new_ttn_number'] = new_ttn
+                if key == 'ttn_number':
+                    if new_ttn:
+                        ttn_statuses[dilovod_id]['new_ttn_number'] = new_ttn
+                        remark: str = ttn_statuses[dilovod_id]['remark']
+                        new_remark: str = f'TTN: {new_ttn}; {remark}'
+                        ttn_statuses[dilovod_id]['remark'] = new_remark
+                    else:
+                        stored_ttn: str = ttn_statuses[dilovod_id]['ttn_number']
+                        if stored_ttn.startswith('590'):
+                            ttn_statuses[dilovod_id]['shipment_status'] = status
 
-                # У будь-якому випадку, якщо key == 'new_ttn_number', або якщо key == 'ttn_number' і new_ttn відсутній
-                if key == 'new_ttn_number' or (key == 'ttn_number' and not new_ttn):
+                if key == 'new_ttn_number':
                     ttn_statuses[dilovod_id]['shipment_status'] = status
 
         return ttn_statuses

@@ -26,6 +26,7 @@ class NovaPostQueryBuilder:
         ttn_dilovod_id_mapper: dict = {}
         for order in dilovod_orders:
             order_id: str = order['header']['id']['id']
+            remark: str = order['header']['remark']
             ttn_number: str | None = order['header']['deliveryRemark_forDel']
             if not ttn_number:
                 self.__logger.error(f'''
@@ -33,7 +34,7 @@ class NovaPostQueryBuilder:
                                     Order will be skiped
                                     Dilovod order: {order}''')
                 continue
-            ttn_dilovod_id_mapper[order_id] = {'ttn_number': ttn_number}
+            ttn_dilovod_id_mapper[order_id] = {'ttn_number': ttn_number, 'remark': f'TTN: {ttn_number}; {remark}'}
             ttn_numbers.append(ttn_number)
         if not ttn_numbers:
             raise ValueError('None TTN found. Unable to continue process')

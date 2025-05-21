@@ -23,6 +23,7 @@ class UkrpostClient:
         for order in dilovod_orders:
             order_id: str = order['header']['id']['id']
             ttn_number: str = order['header']['deliveryRemark_forDel']
+            remark: str = order['header']['remark']
             if not ttn_number:
                 self.__logger.error(f'''
                                     Unable to get TTN "dilovod_id": {order_id}
@@ -32,7 +33,8 @@ class UkrpostClient:
             barcodes.append(ttn_number)
             ttn_mapper[order_id] = {
                 'ttn_number': ttn_number,
-                'shipment_status': ''}
+                'shipment_status': '',
+                'remark': f'TTN: {ttn_number}; {remark}'}
         request_url: str = self.__url + api_endpoint
         request_headers: dict = {
             'Authorization': 'Bearer ' + self.__api_key

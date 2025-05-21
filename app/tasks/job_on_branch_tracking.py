@@ -1,5 +1,6 @@
 import pytz
 from datetime import datetime
+from typing import TypeVar, Literal
 
 
 from app.middlewares.logger.loguru_logger import LoguruLogger
@@ -26,6 +27,17 @@ shipment_processor = ShipmentProcessor()
 novapost_client: NovaPostClient = NovaPostClient()
 novapost_qb: NovaPostQueryBuilder = NovaPostQueryBuilder()
 ukrpost_client: UkrpostClient = UkrpostClient()
+
+T = TypeVar("T")
+
+async def chunk_list(data: list[T], chunk_size: int) -> list[list[T]]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size має бути більшим за 0")
+
+    result: list[list[T]] = []
+    for i in range(0, len(data), chunk_size):
+        result.append(data[i:i + chunk_size])
+    return result
 
 
 async def mail_tracking_on_branch():
@@ -59,15 +71,14 @@ async def handle_ukrpost_tracking(orders: list[dict]):
     dilovod_id_in_status: list[str] = await (
         shipment_processor.get_in_status(
             ttn_mapper=ttn_mapper,
-            target_status='41000'))
-    current_count: int = len(dilovod_id_in_status)
+            target_status='41010'))
     target_count: int = 3
-    if current_count >= target_count:
-        await shipment_processor.process_refunded_shipments(
-            orders=orders,
-            dilovod_id_in_status=dilovod_id_in_status,
-            from_storage='Ukrpost'
-        )
+    await proccess_refund_if_condition(
+        orders=orders,
+        target_count=target_count,
+        dilovod_ids_in_status=dilovod_id_in_status,
+        from_storage='Ukrpost'
+    )
 
 
 async def retrieve_ukr_post_data(
@@ -97,13 +108,36 @@ async def handle_novapost_tracking(orders: list[dict]):
         shipment_processor.get_in_status(
             ttn_mapper=novapost_ttn_statuses,
             target_status='9'))
-    current_count: int = len(dilovod_id_in_status)
+    await proccess_refund_if_condition(
+        orders=orders,
+        target_count=target_count,
+        dilovod_ids_in_status=dilovod_id_in_status,
+        from_storage='Novapost'
+    )
+
+
+async def proccess_refund_if_condition(
+        orders: list[dict],
+        target_count: int,
+        dilovod_ids_in_status: list[str],
+        from_storage: Literal['Novapost', 'Ukrpost']):
+    current_count: int = len(dilovod_ids_in_status)
+    print('np current count of orders for trigger: ', current_count)
     if current_count >= target_count:
-        await shipment_processor.process_refunded_shipments(
-            orders=orders,
-            dilovod_id_in_status=dilovod_id_in_status,
-            from_storage='Novapost'
-        )
+        chunked_id_list: list[list[T]] = await chunk_list(
+            data=dilovod_ids_in_status,
+            chunk_size=target_count)
+        print('np triggered')
+        for chunk in chunked_id_list:
+            print(type(chunk))
+            print(chunk)
+            if len(chunk) < target_count:
+                continue
+            await shipment_processor.process_refunded_shipments(
+                orders=orders,
+                dilovod_id_in_status=chunk,
+                from_storage=from_storage
+            )
 
 
 async def retrieve_novapost_data(

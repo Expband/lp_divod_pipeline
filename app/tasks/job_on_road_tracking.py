@@ -65,37 +65,30 @@ async def handle_novapost_tracking(orders: list[dict]):
             key='ttn_number')
     new_ttns: list[str] = []
     for s_data in remap_ttn_statuses.values():
-        print(s_data)
         new_ttn: str = s_data.get('new_ttn_number')
         if not new_ttn:
             continue
         new_ttns.append(new_ttn)
-    print('new_ttns: ', new_ttns)
     np_ttn_chunked: list[str] = await novapost_qb.chunk_ttn_list(
         ttn=new_ttns,
         units_per_chunl=99)
-    print('np_ttn_chunked: ', np_ttn_chunked)
     np_request_body: list[dict] = await novapost_qb.fortam_shipment_doc(
         ttn_chunked_list=np_ttn_chunked
     )
-    print('np_request_body: ', np_request_body)
     np_responses: list[dict] = await (
         novapost_client.check_bunch_ttn_statuses(
             request_body_list=np_request_body))
-    print('np_responses: ', np_responses)
     remap_ttn_statuses: dict = await novapost_client.remap_if_new_ttn(
         np_responses=np_responses,
         ttn_statuses=remap_ttn_statuses,
         key='new_ttn_number')
-    print('remap_ttn_statuses: ', remap_ttn_statuses)
-    # print('remup ttn statuses after checking: ', remap_ttn_statuses)
     if not remap_ttn_statuses:
         logger.warning('0 orders in NovaPost Delivery')
         return
     await (
         shipment_processor.handle_delivery_update(
             ttn_mapper=remap_ttn_statuses,
-            trigger_status='9',
+            trigger_status='7',
             target_status='returned_to_branch'))
 
 
@@ -107,12 +100,11 @@ async def handle_ukrpost_tracking(orders: list[dict]):
     await ukrpost_client.ukrpost_status_mapper(
         ttn_mapper=ttn_mapper,
         ukrpost_data=ukrpost_data)
-    # print('urk post data after mapping with shipments statuses:', ttn_mapper)
-    # await shipment_processor.handle_delivery_update(
-        # ttn_mapper=ttn_mapper,
-        # trigger_status='41000',
-        # target_status='returned_to_branch'
-    # )
+    await shipment_processor.handle_delivery_update(
+        ttn_mapper=ttn_mapper,
+        trigger_status='21700',
+        target_status='returned_to_branch'
+    )
 
 
 async def retrieve_novapost_data(

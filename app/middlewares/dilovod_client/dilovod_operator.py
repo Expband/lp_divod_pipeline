@@ -12,7 +12,7 @@ class DilovodOperator:
             sorted_orders[delivery_method].append(order)
         return dict(sorted_orders)
 
-    async def get_id_from_list_order(orders: list[dict]) -> list[str]:
+    async def get_id_from_list_order(self, orders: list[dict]) -> list[str]:
         processed_orders_id: list[str] = []
         for order in orders:
             order_id: str = order['header']['id']['id']

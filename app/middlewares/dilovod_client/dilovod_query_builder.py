@@ -287,12 +287,12 @@ class DilovodQueryBuilder:
             header['storageTo'] = '1100700000000001'
         if from_storage == 'Ukrpost':
             header['storageTo'] = '1100700000000002'
-        await self.handle_orders(
+        remark: str =  await self.handle_orders(
             dilovod_orders=dilovod_orders,
             raw_dilovod_request_body=request_body
         )
+        header['remark'] = remark
         request_body['params']['header'] = header
-        print(request_body)
         return request_body
         # for order in dilovod_orders:
         #     tp_goods: dict = order.get('tableParts').get('tpGoods')
@@ -364,7 +364,7 @@ class DilovodQueryBuilder:
     async def handle_orders(
             self,
             dilovod_orders: list[dict[str, Any]],
-            raw_dilovod_request_body: dict[str, Any]) -> None:
+            raw_dilovod_request_body: dict[str, Any]) -> str:
         remark: str = ''
         for dilovod_order in dilovod_orders:
             raw_remark: str = dilovod_order.get('remark')
@@ -392,4 +392,4 @@ class DilovodQueryBuilder:
                         increase_qty=float(qty))
                 else:
                     request_body_goods[good_id] = good_data
-        raw_dilovod_request_body['params']['remark'] = remark
+        return remark

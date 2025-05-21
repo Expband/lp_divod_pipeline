@@ -56,9 +56,12 @@ class ShipmentProcessor:
                 dilovod_request = await self.__dilovod_qb.change_order_status(
                     dilovod_id=dilovod_id,
                     status=target_status)
+                header: dict = dilovod_request['params']['header']
                 if new_ttn:
-                    header: dict = dilovod_request['params']['header']
                     header['deliveryRemark_forDel'] = new_ttn
+                updated_remark: str | None = shipment_data.get('remark')
+                if updated_remark:
+                    header['remark'] = updated_remark
                 await self.__dilovod_client.change_status(
                     request_body=dilovod_request)
 
@@ -101,15 +104,17 @@ class ShipmentProcessor:
         request_body['params']['tableParts']['tpGoods'] = formated_tpGoods
         processed_orders_id: list[str] = await (
             self.__dilvood_operator.get_id_from_list_order(
-                orders=orders))
+                orders))
+        print('mass move request body: ', request_body)
         response: dict = await self.__dilovod_client.make_request(
             request_body=request_body
         )
+        print('mass move dilovod response: ', response)
         error: str = response.get('error')
         if error:
             self.__logger.error(f'''Error occured while mass movement:
                                 {response}''')
         await self.__dilovod_client.list_orders_change_status(
-            orders_ids=processed_orders_id,
+            orders_ids=dilovod_id_in_status,
             status='refund_taken'
         )

@@ -1,6 +1,7 @@
 from app.routers.crm_postback_router import router
 from app.tasks.job_on_road_tracking import mail_tracking_on_road
 from app.tasks.job_on_branch_tracking import mail_tracking_on_branch
+from app.tasks.refund_wrapper import refund_wrapper
 from app.tasks.scheduler import Scheduler
 from app.middlewares.logger.loguru_logger import LoguruLogger
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     sc = Scheduler()
     sc.start()
     logger.info(f'Scheduler started')
+    sc.add_job(refund_wrapper, hours=0, minutes=5, seconds=0)
     sc.add_job(mail_tracking_on_road, hours=0, minutes=1, seconds=0)
     logger.info(f'Task "mail_tracking_on_road" added')
     sc.add_job(mail_tracking_on_branch, hours=0, minutes=1, seconds=0)
