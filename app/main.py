@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     sc = Scheduler()
     sc.start()
     logger.info(f'Scheduler started')
-    sc.add_job(refund_wrapper, hours=1, minutes=0, seconds=0)
+    sc.add_job(refund_wrapper, hours=0, minutes=6, seconds=0)
     yield
     sc.shutdown()
     logger.info(f'Scheduler stopped')

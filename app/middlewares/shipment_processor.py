@@ -9,6 +9,7 @@ from app.middlewares.dilovod_client.dilovod_statistics_middleware import (
 from app.middlewares.logger.loguru_logger import LoguruLogger
 from app.middlewares.dilovod_client.dilovod_client import DilovodClient
 from app.middlewares.dilovod_client.dilovod_operator import DilovodOperator
+from app.middlewares.dilovod_objects_middleware import DilovodObjectsMiddleware
 
 
 class ShipmentProcessor:
@@ -20,6 +21,7 @@ class ShipmentProcessor:
         self.__dilovod_client = DilovodClient(
             dilovod_statistics=self.__dilovod_stat)
         self.__dilvood_operator = DilovodOperator()
+        self.__dilovod_middleware = DilovodObjectsMiddleware()
 
     async def find_key_by_ttn_number(
             self,
@@ -45,6 +47,7 @@ class ShipmentProcessor:
             self,
             ttn_mapper: dict,
             trigger_status: str,
+            orders: list[dict],
             target_status: Literal[
                     'completed', 'sent_to_post_office',
                     'refund_on_the_road', 'returned_to_branch',
@@ -64,6 +67,20 @@ class ShipmentProcessor:
                     header['remark'] = updated_remark
                 await self.__dilovod_client.change_status(
                     request_body=dilovod_request)
+                dilovod_order_object: dict = await self.__dilovod_middleware.get_object_from_dict_by_id(
+                    target_id=dilovod_id,
+                    dilovod_objects=orders
+                )
+                if not dilovod_order_object:
+                    self.__logger.error(f'Dilovod order with id {dilovod_id} was not found in {orders}')
+                    continue
+                if target_status == 'returned_to_branch' or 'returned_to_branch':
+                    await self.__dilovod_client.make_move(
+                        dilovod_response=dilovod_order_object,
+                        move_type='from_on_road',
+                        save_type='registred'
+                    )
+                
 
     async def get_in_status(
             self,

@@ -89,7 +89,8 @@ async def handle_novapost_tracking(orders: list[dict]):
         shipment_processor.handle_delivery_update(
             ttn_mapper=remap_ttn_statuses,
             trigger_status='7',
-            target_status='returned_to_branch'))
+            target_status='returned_to_branch',
+            orders=orders))
 
 
 async def handle_ukrpost_tracking(orders: list[dict]):
@@ -103,7 +104,8 @@ async def handle_ukrpost_tracking(orders: list[dict]):
     await shipment_processor.handle_delivery_update(
         ttn_mapper=ttn_mapper,
         trigger_status='21700',
-        target_status='returned_to_branch'
+        target_status='returned_to_branch',
+        orders=orders
     )
 
 

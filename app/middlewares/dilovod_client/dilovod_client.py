@@ -211,7 +211,8 @@ class DilovodClient:
             dilovod_response: dict,
             move_type: Literal[
                 'from_sale',
-                'from_movement'],
+                'from_movement',
+                'from_on_road'],
             save_type: Literal[
                 'registred',
                 'unregistred'

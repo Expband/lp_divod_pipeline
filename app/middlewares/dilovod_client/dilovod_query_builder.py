@@ -37,7 +37,8 @@ class DilovodQueryBuilder:
             saveType: int,
             move_type: Literal[
                 'from_sale',
-                'from_movement'],
+                'from_movement',
+                'from_on_road'],
             date: str = None) -> dict:
         if not date:
             date: str = datetime.datetime.now(
@@ -93,6 +94,13 @@ class DilovodQueryBuilder:
                 storageTo_id = '1100100000058677'
             if pervious_storage == '1100100000001003':
                 storageTo_id = '1100100000058678'
+        if move_type == 'from_on_road':
+            pervious_storage: str = header_raw['storageTo']['id']
+            header['storage'] = pervious_storage
+            if pervious_storage == '1100100000058677':
+                storageTo_id = '1100100000058679'
+            if pervious_storage == '1100100000058678':
+                storageTo_id = '1100100000058680'
         header['storageTo'] = storageTo_id
         request_body['params'].setdefault('header', {})
         request_body['params']['header'] = header
